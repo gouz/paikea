@@ -104,6 +104,21 @@ export interface ToolCall {
   arguments: Record<string, string>;
 }
 
+// Chat message in the OpenAI-compatible shape DMR expects. An assistant
+// message that invokes tools carries `tool_calls`, and each subsequent `tool`
+// message links back to it via `tool_call_id`.
+export interface ChatMessage {
+  role: string;
+  content: string;
+  tool_call_id?: string;
+  name?: string;
+  tool_calls?: {
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }[];
+}
+
 export interface ToolResult {
   toolCallId: string;
   name: string;

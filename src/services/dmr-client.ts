@@ -1,5 +1,6 @@
 import { getDmrBaseUrl } from "../state/config";
 import type {
+  ChatMessage,
   DMRChatChunk,
   DMRChatRequest,
   Model,
@@ -28,12 +29,7 @@ interface StreamToolCallAcc {
 }
 
 export async function* streamChat(
-  messages: {
-    role: string;
-    content: string;
-    tool_call_id?: string;
-    name?: string;
-  }[],
+  messages: ChatMessage[],
   model: string,
   tools?: ToolDefinition[],
   signal?: AbortSignal,

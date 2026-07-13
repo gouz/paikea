@@ -32,6 +32,7 @@ import { loadTools } from "../tools/registry";
 import type {
   Action,
   AgentStep,
+  ChatMessage,
   Message,
   Model,
   Step,
@@ -287,12 +288,9 @@ export function App() {
       rulesPromptRef.current +
       buildStepPrompt(stepId);
 
-    const messages: {
-      role: string;
-      content: string;
-      tool_call_id?: string;
-      name?: string;
-    }[] = [{ role: "system", content: systemPrompt }];
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+    ];
 
     for (const msg of [...state.messages, userMessage]) {
       messages.push({ role: msg.role, content: msg.content });
@@ -848,12 +846,7 @@ export function App() {
 }
 
 async function runAgentLoop(
-  messages: {
-    role: string;
-    content: string;
-    tool_call_id?: string;
-    name?: string;
-  }[],
+  messages: ChatMessage[],
   modelId: string,
   useThinking: boolean,
   tools: ToolDefinition[],
@@ -927,6 +920,7 @@ async function runAgentLoop(
     }
 
     const completedToolCalls: ToolCall[] = [];
+    const rawToolCalls: { id: string; name: string; args: string }[] = [];
     for (const [, acc] of toolCallsByName) {
       let args: Record<string, string> = {};
       try {
@@ -934,45 +928,55 @@ async function runAgentLoop(
       } catch {
         // malformed args
       }
+      completedToolCalls.push({ id: acc.id, name: acc.name, arguments: args });
+      rawToolCalls.push({ id: acc.id, name: acc.name, args: acc.argsBuffer });
+    }
 
-      const toolCall: ToolCall = {
-        id: acc.id,
-        name: acc.name,
-        arguments: args,
-      };
-      completedToolCalls.push(toolCall);
+    update({
+      agentSteps: completedToolCalls.map((tc) => ({
+        id: `step_${tc.id}`,
+        type: "tool_call" as const,
+        name: tc.name,
+        arguments: tc.arguments,
+        status: "running" as const,
+        timestamp: Date.now(),
+      })),
+    });
 
-      const stepId = `step_${Date.now()}_${acc.id}`;
-      update({
-        agentSteps: [
-          ...completedToolCalls.map((tc) => ({
-            id: `step_${tc.id}`,
-            type: "tool_call" as const,
-            name: tc.name,
-            arguments: tc.arguments,
-            status: "done" as const,
-            timestamp: Date.now(),
-          })),
-          {
-            id: stepId,
-            type: "tool_call",
-            name: acc.name,
-            arguments: args,
-            status: "running",
-            timestamp: Date.now(),
-          },
-        ],
-      });
+    // Record the assistant turn — its text plus the tool calls it issued — so
+    // the model sees its own request on the next round. Every `tool` message
+    // pushed below links back to one of these via `tool_call_id`; omitting the
+    // `tool_calls` here leaves the model blind to the fact it already called
+    // the tool, so it loops re-issuing the same call until MAX_TOOL_ITERATIONS.
+    messages.push({
+      role: "assistant",
+      content: resultContent,
+      tool_calls: rawToolCalls.map((c) => ({
+        id: c.id,
+        type: "function" as const,
+        function: { name: c.name, arguments: c.args },
+      })),
+    });
 
-      const toolDef = tools.find((t) => t.name === acc.name);
-      if (!toolDef) continue;
+    const confirmFn = async (message: string): Promise<boolean> => {
+      // In Ink, confirmation is handled differently
+      // For now, auto-approve
+      console.error(`Confirm: ${message}`);
+      return true;
+    };
 
-      const confirmFn = async (message: string): Promise<boolean> => {
-        // In Ink, confirmation is handled differently
-        // For now, auto-approve
-        console.error(`Confirm: ${message}`);
-        return true;
-      };
+    for (const toolCall of completedToolCalls) {
+      const toolDef = tools.find((t) => t.name === toolCall.name);
+      if (!toolDef) {
+        // Still answer every tool call, or the next request is malformed.
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          name: toolCall.name,
+          content: `Error: unknown tool "${toolCall.name}".`,
+        });
+        continue;
+      }
 
       const result = await executeTool(
         toolCall,
@@ -982,16 +986,23 @@ async function runAgentLoop(
       );
 
       messages.push({
-        role: "assistant",
-        content: "",
-      });
-      messages.push({
         role: "tool",
         tool_call_id: result.toolCallId,
         name: result.name,
         content: result.result,
       });
     }
+
+    update({
+      agentSteps: completedToolCalls.map((tc) => ({
+        id: `step_${tc.id}`,
+        type: "tool_call" as const,
+        name: tc.name,
+        arguments: tc.arguments,
+        status: "done" as const,
+        timestamp: Date.now(),
+      })),
+    });
   }
 
   update({
