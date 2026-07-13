@@ -53,6 +53,7 @@ interface AppState {
   suggestionIndex: number;
   confirmQuit: boolean;
   selectedStepIndex: number;
+  themeTick: number;
 }
 
 export function App() {
@@ -77,6 +78,7 @@ export function App() {
     suggestionIndex: -1,
     confirmQuit: false,
     selectedStepIndex: 0,
+    themeTick: 0,
   });
 
   const [prompt, setPrompt] = useState("");
@@ -244,6 +246,7 @@ export function App() {
     action: () => {
       setThemeByName(name);
       saveTheme(name);
+      update({ themeTick: state.themeTick + 1 });
     },
   }));
 
