@@ -1,49 +1,57 @@
 import { Box, Text } from "ink";
 import type { Step } from "../../types";
-import { colors, symbols } from "../theme";
+import { symbols, t } from "../theme";
 
 interface TimelineProps {
   steps: Step[];
+  selectedIndex: number;
 }
 
-export function Timeline({ steps }: TimelineProps) {
+export function Timeline({ steps, selectedIndex }: TimelineProps) {
   if (steps.length === 0) return null;
 
   return (
     <Box>
       {steps.map((step, i) => {
         const isLast = i === steps.length - 1;
+        const isSelected = i === selectedIndex;
         return (
           <Box key={step.id}>
             <Text
               color={
-                step.status === "done"
-                  ? colors.fg.success
-                  : step.status === "current"
-                    ? colors.fg.accent
-                    : colors.fg.dim
+                isSelected
+                  ? t().fg.accent
+                  : step.status === "done"
+                    ? t().fg.success
+                    : step.status === "current"
+                      ? t().fg.accent
+                      : t().fg.dim
               }
-              bold={step.status === "current"}
+              bold={isSelected || step.status === "current"}
             >
               {step.status === "done" || step.status === "current"
                 ? symbols.bullet
-                : symbols.empty}
+                : isSelected
+                  ? "◆"
+                  : symbols.empty}
             </Text>
             <Text> </Text>
             <Text
               color={
-                step.status === "done"
-                  ? colors.fg.success
-                  : step.status === "current"
-                    ? colors.fg.accent
-                    : colors.fg.dim
+                isSelected
+                  ? t().fg.accent
+                  : step.status === "done"
+                    ? t().fg.success
+                    : step.status === "current"
+                      ? t().fg.accent
+                      : t().fg.dim
               }
-              bold={step.status === "current"}
+              bold={isSelected || step.status === "current"}
             >
               {step.name}
             </Text>
             {!isLast && (
-              <Text color={colors.fg.dim}>
+              <Text color={t().fg.dim}>
                 {" "}
                 {symbols.divider}
                 {symbols.divider}

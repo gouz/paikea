@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import type { AgentStep } from "../../types";
-import { colors, symbols } from "../theme";
+import { symbols, t } from "../theme";
 
 const TOOL_ICONS: Record<string, string> = {
   web_search: "🔍",
@@ -13,21 +13,25 @@ const TOOL_ICONS: Record<string, string> = {
 
 interface AgentStepsProps {
   steps: AgentStep[];
+  maxHeight: number;
 }
 
-export function AgentSteps({ steps }: AgentStepsProps) {
-  if (steps.length === 0) return null;
+export function AgentSteps({ steps, maxHeight }: AgentStepsProps) {
+  if (steps.length === 0 || maxHeight < 2) return null;
+
+  const visibleSteps = steps.slice(0, Math.max(1, maxHeight - 2));
 
   return (
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor={colors.fg.warning}
+      borderColor={t().fg.warning}
+      height={maxHeight}
     >
-      <Text color={colors.fg.warning} bold>
+      <Text color={t().fg.warning} bold>
         ── agent ──
       </Text>
-      {steps.map((step) => {
+      {visibleSteps.map((step) => {
         const icon = getStepIcon(step);
         const text = getStepText(step);
         const indicator = getStepIndicator(step);
@@ -87,11 +91,11 @@ function getStepIndicator(step: AgentStep): string {
 }
 
 function getStepColor(step: AgentStep): string {
-  if (step.status === "error") return colors.fg.error;
-  if (step.status === "running") return colors.fg.accent;
-  if (step.type === "tool_call") return colors.fg.warning;
-  if (step.type === "tool_result") return colors.fg.success;
-  return colors.fg.secondary;
+  if (step.status === "error") return t().fg.error;
+  if (step.status === "running") return t().fg.accent;
+  if (step.type === "tool_call") return t().fg.warning;
+  if (step.type === "tool_result") return t().fg.success;
+  return t().fg.secondary;
 }
 
 function truncateStr(text: string, max: number): string {

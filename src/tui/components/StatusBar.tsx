@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import type { Model } from "../../types";
-import { colors, symbols } from "../theme";
+import { symbols, t } from "../theme";
 
 interface StatusBarProps {
   model: Model | null;
@@ -8,6 +8,7 @@ interface StatusBarProps {
   streaming: boolean;
   toolbarIndex: number;
   isToolbarMode: boolean;
+  confirmQuit: boolean;
 }
 
 const TOOLBAR_BUTTONS = [
@@ -23,44 +24,54 @@ export function StatusBar({
   streaming,
   toolbarIndex,
   isToolbarMode,
+  confirmQuit,
 }: StatusBarProps) {
   return (
     <Box>
-      <Text color={colors.fg.dim}> tokens {tokens}</Text>
-      <Text> </Text>
-      {!streaming ? (
-        TOOLBAR_BUTTONS.map((btn, i) => {
-          const isSelected = isToolbarMode && i === toolbarIndex;
-          return (
-            <Text key={btn.id}>
-              <Text
-                color={isSelected ? colors.fg.accent : colors.fg.dim}
-                bold={isSelected}
-              >
-                {" "}
-                {btn.label}{" "}
-              </Text>
-            </Text>
-          );
-        })
-      ) : (
-        <Text color={colors.fg.accent} bold>
+      {confirmQuit ? (
+        <Text color={t().fg.accent} bold>
           {" "}
-          {
-            symbols.spinner[
-              Math.floor(Date.now() / 100) % symbols.spinner.length
-            ]
-          }{" "}
-          streaming{" "}
+          sure quit? (esc again){" "}
         </Text>
-      )}
-      <Text> </Text>
-      {streaming ? (
-        <Text> </Text>
-      ) : isToolbarMode ? (
-        <Text color={colors.fg.dim}> Tab/Enter </Text>
       ) : (
-        <Text color={colors.fg.dim}> : palette </Text>
+        <>
+          <Text color={t().fg.dim}> tokens {tokens}</Text>
+          <Text> </Text>
+          {!streaming ? (
+            TOOLBAR_BUTTONS.map((btn, i) => {
+              const isSelected = isToolbarMode && i === toolbarIndex;
+              return (
+                <Text key={btn.id}>
+                  <Text
+                    color={isSelected ? t().fg.accent : t().fg.dim}
+                    bold={isSelected}
+                  >
+                    {" "}
+                    {btn.label}{" "}
+                  </Text>
+                </Text>
+              );
+            })
+          ) : (
+            <Text color={t().fg.accent} bold>
+              {" "}
+              {
+                symbols.spinner[
+                  Math.floor(Date.now() / 100) % symbols.spinner.length
+                ]
+              }{" "}
+              streaming{" "}
+            </Text>
+          )}
+          <Text> </Text>
+          {streaming ? (
+            <Text> </Text>
+          ) : isToolbarMode ? (
+            <Text color={t().fg.dim}> Tab/Enter </Text>
+          ) : (
+            <Text color={t().fg.dim}> ctrl+p palette </Text>
+          )}
+        </>
       )}
     </Box>
   );

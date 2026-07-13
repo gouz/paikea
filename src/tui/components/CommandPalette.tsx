@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import type { Action } from "../../types";
-import { colors } from "../theme";
+import { t } from "../theme";
 
 interface CommandPaletteProps {
   actions: Action[];
@@ -18,26 +18,26 @@ export function CommandPalette({
       left="50%"
       top="50%"
       borderStyle="round"
-      borderColor={colors.fg.accent}
-      backgroundColor={colors.bg.panelAlt}
+      borderColor={t().fg.accent}
+      backgroundColor={t().bg.panelAlt}
     >
-      <Text color={colors.fg.accent} bold>
+      <Text color={t().fg.accent} bold>
         {" "}
         Actions{" "}
       </Text>
-      <Text color={colors.fg.dim}>────────────</Text>
+      <Text color={t().fg.dim}>────────────</Text>
       {actions.map((action, i) => {
         const isSelected = i === selectedIndex;
         return (
           <Text key={action.id}>
-            <Text color={isSelected ? colors.fg.accent : colors.fg.dim}>
+            <Text color={isSelected ? t().fg.accent : t().fg.dim}>
               {isSelected ? "❯ " : "  "}
             </Text>
-            <Text color={isSelected ? colors.fg.primary : colors.fg.secondary}>
+            <Text color={isSelected ? t().fg.primary : t().fg.secondary}>
               {action.label}
             </Text>
             {action.shortcut && (
-              <Text color={colors.fg.dim}> {action.shortcut}</Text>
+              <Text color={t().fg.dim}> {action.shortcut}</Text>
             )}
           </Text>
         );

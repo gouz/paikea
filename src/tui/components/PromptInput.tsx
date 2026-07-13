@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { colors } from "../theme";
+import { t } from "../theme";
 
 interface PromptInputProps {
   prompt: string;
@@ -16,20 +16,20 @@ export function PromptInput({
   suggestions,
   suggestionIndex,
 }: PromptInputProps) {
-  const lineColor = focused ? colors.fg.accent : colors.fg.dim;
+  const lineColor = focused ? t().fg.accent : t().fg.dim;
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={lineColor}>
       <Box>
-        <Text color={colors.fg.accent} bold>
+        <Text color={t().fg.accent} bold>
           ❯{" "}
         </Text>
         {prompt ? (
-          <Text color={colors.fg.primary}>{prompt}</Text>
+          <Text color={t().fg.primary}>{prompt}</Text>
         ) : (
-          <Text color={colors.fg.dim}>type your prompt...</Text>
+          <Text color={t().fg.dim}>type your prompt...</Text>
         )}
-        {focused && <Text color={colors.fg.accent}>█</Text>}
+        {focused && <Text color={t().fg.accent}>█</Text>}
       </Box>
       <Box>
         {(() => {
@@ -42,15 +42,15 @@ export function PromptInput({
             return (
               <>
                 {remaining && (
-                  <Text color={colors.fg.dim} italic>
+                  <Text color={t().fg.dim} italic>
                     {remaining}
                   </Text>
                 )}
-                <Text color={colors.fg.dim}> tab →</Text>
+                <Text color={t().fg.dim}> tab →</Text>
               </>
             );
           }
-          return <Text color={colors.fg.dim}>Enter to send</Text>;
+          return <Text color={t().fg.dim}>Enter to send</Text>;
         })()}
       </Box>
     </Box>

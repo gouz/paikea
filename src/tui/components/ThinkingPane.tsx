@@ -1,27 +1,41 @@
 import { Box, Text } from "ink";
-import { colors, symbols } from "../theme";
+import { symbols, t } from "../theme";
 
 interface ThinkingPaneProps {
   content: string;
   visible: boolean;
+  maxHeight: number;
 }
 
-export function ThinkingPane({ content, visible }: ThinkingPaneProps) {
-  if (!visible) return null;
+export function ThinkingPane({
+  content,
+  visible,
+  maxHeight,
+}: ThinkingPaneProps) {
+  if (!visible || maxHeight < 2) return null;
+
+  const lines = content.split("\n");
+  const visibleLines = lines.slice(0, Math.max(1, maxHeight - 2));
 
   return (
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor={colors.fg.thinking}
+      borderColor={t().fg.thinking}
+      height={maxHeight}
     >
-      <Text color={colors.fg.thinking} bold>
+      <Text color={t().fg.thinking} bold>
         ── thinking ──
       </Text>
       {content ? (
-        <Text color={colors.fg.thinking}>{content}</Text>
+        visibleLines.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: flat text list, never reorders
+          <Text key={`t-${i}`} color={t().fg.thinking}>
+            {line}
+          </Text>
+        ))
       ) : (
-        <Text color={colors.fg.thinking}>
+        <Text color={t().fg.thinking}>
           {
             symbols.spinner[
               Math.floor(Date.now() / 100) % symbols.spinner.length
