@@ -18,7 +18,7 @@ export function Header({ model }: HeaderProps) {
       </Text>
       <Text> </Text>
       <Text color={t().fg.dim}>
-        enter send · tab model · ctrl+← → steps · ctrl+p palette · esc quit
+        enter send · tab model · alt+← → steps · ctrl+p palette · esc quit
       </Text>
     </Box>
   );

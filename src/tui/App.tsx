@@ -420,12 +420,12 @@ export function App() {
       return;
     }
 
-    // Ctrl+Left/Right to navigate steps
-    if (key.ctrl && key.leftArrow) {
+    // Alt+Left/Right to navigate steps
+    if (key.meta && key.leftArrow) {
       update({ selectedStepIndex: Math.max(0, s.selectedStepIndex - 1) });
       return;
     }
-    if (key.ctrl && key.rightArrow) {
+    if (key.meta && key.rightArrow) {
       update({
         selectedStepIndex: Math.min(
           s.steps.length - 1,
