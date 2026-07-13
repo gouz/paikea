@@ -61,6 +61,8 @@ export async function* streamChat(
     }));
   }
 
+  const toolCallAccumulators = new Map<number, StreamToolCallAcc>();
+
   const res = await fetch(`${DMR_BASE}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -68,22 +70,38 @@ export async function* streamChat(
     signal,
   });
 
+  // If tools caused a 400, retry without them
+  if (!res.ok && res.status === 400 && body.tools) {
+    delete body.tools;
+    const retryRes = await fetch(`${DMR_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!retryRes.ok) {
+      throw new Error(`DMR error: ${retryRes.status} ${retryRes.statusText}`);
+    }
+    return yield* parseSSEStream(retryRes, toolCallAccumulators);
+  }
+
   if (!res.ok) {
     throw new Error(`DMR error: ${res.status} ${res.statusText}`);
   }
 
+  return yield* parseSSEStream(res, toolCallAccumulators);
+}
+
+async function* parseSSEStream(
+  res: Response,
+  toolCallAccumulators: Map<number, StreamToolCallAcc>,
+): AsyncGenerator<StreamChunk> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("No readable stream");
   const decoder = new TextDecoder();
   let buffer = "";
 
-  const toolCallAccumulators = new Map<number, StreamToolCallAcc>();
-
   while (true) {
-    if (signal?.aborted) {
-      await reader.cancel().catch(() => {});
-      return;
-    }
     const { done, value } = await reader.read();
     if (done) break;
 
