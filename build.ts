@@ -45,7 +45,6 @@ const result = await Bun.build({
   target: "bun",
   compile: true,
   minify: true,
-  external: ["react-devtools-core"],
 });
 
 if (!result.success) {
