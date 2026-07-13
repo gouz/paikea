@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "bun run src/cli/index.ts",
     "build": "bun run build.ts",
+    "make:exe": "bun run build.ts --exe",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "lint": "biome check src/",

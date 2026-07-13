@@ -1,4 +1,10 @@
-import { readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 // Generate src/assets.ts with embedded file contents
@@ -36,24 +42,54 @@ function collectMdFiles(dir: string, out: Record<string, string>, prefix = "") {
   }
 }
 
-// Generate assets then build
+// Generate assets, then build.
 generateAssets();
 
-const result = await Bun.build({
-  entrypoints: ["./src/cli/index.ts"],
-  outdir: "./dist",
-  target: "bun",
-  compile: true,
-  minify: true,
-});
+const args = process.argv.slice(2);
+// `--exe` (used by `bun make:exe` in release CI) produces a standalone binary
+// at exe/paikea, optionally cross-compiled via a forwarded `--target=...`.
+const exeMode = args.includes("--exe");
+const targetArg = args.find((a) => a.startsWith("--target="));
 
-if (!result.success) {
-  console.error("Build failed:");
-  for (const log of result.logs) {
-    console.error(log);
+if (exeMode) {
+  mkdirSync("exe", { recursive: true });
+  const proc = Bun.spawnSync(
+    [
+      "bun",
+      "build",
+      "./src/cli/index.ts",
+      "--compile",
+      "--minify",
+      ...(targetArg ? [targetArg] : []),
+      "--outfile",
+      "exe/paikea",
+    ],
+    { stdout: "inherit", stderr: "inherit" },
+  );
+  if (!proc.success) {
+    console.error("Build failed");
+    process.exit(1);
   }
-  process.exit(1);
-}
+  console.log(
+    `Build successful! Binary at exe/paikea${targetArg ? ` (${targetArg.slice("--target=".length)})` : ""}`,
+  );
+} else {
+  const result = await Bun.build({
+    entrypoints: ["./src/cli/index.ts"],
+    outdir: "./dist",
+    target: "bun",
+    compile: true,
+    minify: true,
+  });
 
-renameSync("./dist/cli", "./dist/paikea");
-console.log("Build successful! Binary at dist/paikea");
+  if (!result.success) {
+    console.error("Build failed:");
+    for (const log of result.logs) {
+      console.error(log);
+    }
+    process.exit(1);
+  }
+
+  renameSync("./dist/cli", "./dist/paikea");
+  console.log("Build successful! Binary at dist/paikea");
+}
