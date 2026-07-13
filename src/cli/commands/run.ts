@@ -1,6 +1,6 @@
 import { outro } from "@clack/prompts";
 import { listModels } from "../../services/dmr-client";
-import { startTUI } from "./tui-main";
+import { startTUI } from "../../tui";
 
 export async function runHandler() {
   const models = await listModels();

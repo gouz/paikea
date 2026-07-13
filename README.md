@@ -8,7 +8,7 @@ paikea
 
 ## Features
 
-- **Full-screen TUI** — header, timeline, thinking pane, result pane, prompt input, status bar
+- **Full-screen TUI** — React/Ink components with flexbox layout
 - **Local LLMs** — streams via Docker Model Runner (OpenAI-compatible API at `localhost:12434`)
 - **Model switching** — Tab / Shift+Tab cycles through available models, or `M` to pick from a list
 - **Thinking support** — detects and renders chain-of-thought from Qwen3, DeepSeek-R1, OpenAI o-series
@@ -99,22 +99,22 @@ src/
 │   ├── commands/
 │   │   ├── init.ts           # paikea init
 │   │   ├── doc.ts            # paikea doc
-│   │   ├── run.ts            # paikea (TUI)
-│   │   └── tui-main.ts       # main TUI loop + keyboard handling
+│   │   └── run.ts            # paikea (TUI)
 │   └── prompts/
 │       └── stack-questions.ts # init wizard (language, framework, db, services)
-├── components/
-│   ├── header.ts             # top bar
-│   ├── timeline.ts           # message history
-│   ├── thinking-pane.ts      # chain-of-thought display
-│   ├── result-pane.ts        # LLM response rendering
-│   ├── prompt-input.ts       # text input area
-│   └── status-bar.ts         # bottom bar (model, skills, openspec steps)
-├── renderer/
-│   ├── terminal.ts           # raw mode, event stream, cursor
-│   ├── layout.ts             # 6-zone responsive layout
-│   ├── theme.ts              # colors, symbols, spacing
-│   └── draw.ts               # box drawing, text wrapping
+├── tui/
+│   ├── index.tsx             # TUI entry (Ink render)
+│   ├── App.tsx               # Main app component + agent loop
+│   ├── theme.tsx             # colors, symbols, frise palette
+│   └── components/
+│       ├── Header.tsx        # top bar with logo + model pill
+│       ├── Timeline.tsx      # OpenSpec step progress
+│       ├── ThinkingPane.tsx  # chain-of-thought display
+│       ├── AgentSteps.tsx    # tool call/result visualization
+│       ├── ResultPane.tsx    # LLM response rendering
+│       ├── PromptInput.tsx   # text input with suggestions
+│       ├── StatusBar.tsx     # bottom bar (tokens, toolbar)
+│       └── CommandPalette.tsx # action palette overlay
 ├── services/
 │   ├── dmr-client.ts         # Docker Model Runner API (SSE streaming)
 │   ├── model-registry.ts     # model fetching + cycling
@@ -128,7 +128,6 @@ src/
 ├── rules/
 │   └── registry.ts           # loads *.md rule files
 ├── state/
-│   ├── store.ts              # reactive state store
 │   └── session.ts            # session save/load
 └── types.ts                  # shared types
 ```
@@ -139,7 +138,7 @@ src/
 |-------|---------|
 | CLI parser | [clipse](https://github.com/gouz/clipse) |
 | Interactive prompts | [@clack/prompts](https://github.com/bombshell-dev/clack) |
-| TUI rendering | [@hexie/tui](https://github.com/anomalyco/hexie) |
+| TUI rendering | [Ink](https://github.com/vadimdemedes/ink) + [TermUI](https://github.com/Arindam200/termui) |
 | LLM backend | [Docker Model Runner](https://docs.docker.com/desktop/features/model-runner/) |
 | Linter/formatter | [Biome](https://biomejs.dev) |
 | Runtime | [Bun](https://bun.sh) |

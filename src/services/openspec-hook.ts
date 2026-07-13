@@ -18,7 +18,7 @@ export function detectOpenSpecSteps(projectDir: string): Step[] {
   if (!existsSync(changesDir)) {
     return WORKFLOW_STEPS.map((s, i) => ({
       ...s,
-      status: (i === 0 ? "current" : "pending") as const,
+      status: (i === 0 ? "current" : "pending") as Step["status"],
     }));
   }
 
@@ -26,7 +26,7 @@ export function detectOpenSpecSteps(projectDir: string): Step[] {
   if (changes.length === 0) {
     return WORKFLOW_STEPS.map((s, i) => ({
       ...s,
-      status: (i === 0 ? "current" : "pending") as const,
+      status: (i === 0 ? "current" : "pending") as Step["status"],
     }));
   }
 
