@@ -89,7 +89,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
-          tag_name: ${{ needs.create_release.outputs.tag-name }}
+          tag_name: ${{ github.ref_name }}
           files: paikea_${{ matrix.release_suffix }}.tar.gz
           generate_release_notes: true
 
@@ -137,5 +137,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
-          tag_name: ${{ needs.create_release.outputs.tag-name }}
+          tag_name: ${{ github.ref_name }}
           files: paikea_${{ github.ref_name }}_amd64.deb
