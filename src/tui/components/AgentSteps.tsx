@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import type { AgentStep } from "../../types";
+import { useSpinner } from "../hooks/use-spinner";
 import { symbols, t } from "../theme";
 
 const TOOL_ICONS: Record<string, string> = {
@@ -17,9 +18,14 @@ interface AgentStepsProps {
 }
 
 export function AgentSteps({ steps, maxHeight }: AgentStepsProps) {
+  const running = steps.some((s) => s.status === "running");
+  const spinner = useSpinner(running);
+
   if (steps.length === 0 || maxHeight < 2) return null;
 
-  const visibleSteps = steps.slice(0, Math.max(1, maxHeight - 2));
+  // Show the most recent steps so activity stays visible
+  const visibleSteps = steps.slice(-Math.max(1, maxHeight - 2));
+  const doneCount = steps.filter((s) => s.status === "done").length;
 
   return (
     <Box
@@ -29,16 +35,17 @@ export function AgentSteps({ steps, maxHeight }: AgentStepsProps) {
       height={maxHeight}
     >
       <Text color={t().fg.warning} bold>
-        ── agent ──
+        ── agent · {doneCount}/{steps.length} ──
       </Text>
       {visibleSteps.map((step) => {
         const icon = getStepIcon(step);
         const text = getStepText(step);
-        const indicator = getStepIndicator(step);
+        const indicator =
+          step.status === "running" ? spinner : getStepIndicator(step);
         const color = getStepColor(step);
 
         return (
-          <Text key={step.id} color={color}>
+          <Text key={step.id} color={color} wrap="truncate-end">
             {icon} {text} {indicator}
           </Text>
         );
@@ -75,12 +82,6 @@ function getStepText(step: AgentStep): string {
 
 function getStepIndicator(step: AgentStep): string {
   switch (step.status) {
-    case "running":
-      return (
-        symbols.spinner[
-          Math.floor(Date.now() / 100) % symbols.spinner.length
-        ] ?? ""
-      );
     case "done":
       return symbols.check;
     case "error":

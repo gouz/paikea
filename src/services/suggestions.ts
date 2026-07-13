@@ -6,19 +6,12 @@ const STEP_SUGGESTIONS: Record<string, string[]> = {
     "What are the constraints?",
     "What are the edge cases?",
   ],
-  propose: [
+  proposal: [
     "Create a proposal for",
     "I want to add",
     "I need to change",
     "The problem is",
     "We should refactor",
-  ],
-  plan: [
-    "Break this down into steps",
-    "What files need to change?",
-    "What's the impact on the codebase?",
-    "What are the dependencies?",
-    "List the affected modules",
   ],
   design: [
     "Design the API for",
@@ -26,6 +19,13 @@ const STEP_SUGGESTIONS: Record<string, string[]> = {
     "How should this integrate?",
     "What's the interface?",
     "Sketch the architecture",
+  ],
+  specs: [
+    "Write the spec for",
+    "What are the requirements?",
+    "Define the behavior of",
+    "What are the acceptance criteria?",
+    "Validate the spec",
   ],
   tasks: [
     "Create tasks for",
@@ -64,4 +64,36 @@ export function getCurrentStepId(
 ): string {
   const current = steps.find((s) => s.status === "current");
   return current?.id ?? "discuss";
+}
+
+// Slash-command autocompletions for switching workflow steps, e.g. typing
+// "/pro" suggests ["/proposal"]. Driven by the live frise so the commands
+// always match the steps actually on screen.
+export function computeStepCommands(
+  prompt: string,
+  stepIds: string[],
+): string[] {
+  const lower = prompt.toLowerCase();
+  return stepIds.map((id) => `/${id}`).filter((cmd) => cmd.startsWith(lower));
+}
+
+// Natural-language shorthands that aren't a prefix of the canonical step id.
+const STEP_ALIASES: Record<string, string> = { propose: "proposal" };
+
+// Resolve a prompt like "/apply" (an alias like "/propose", or a unique prefix
+// like "/pro") to a step id, or null when it isn't a step command, the alias
+// doesn't apply, or the prefix is ambiguous.
+export function matchStepCommand(
+  prompt: string,
+  stepIds: string[],
+): string | null {
+  const trimmed = prompt.trim().toLowerCase();
+  if (!trimmed.startsWith("/")) return null;
+  const query = trimmed.slice(1);
+  if (!query) return null;
+  if (stepIds.includes(query)) return query;
+  const alias = STEP_ALIASES[query];
+  if (alias && stepIds.includes(alias)) return alias;
+  const matches = stepIds.filter((id) => id.startsWith(query));
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 }

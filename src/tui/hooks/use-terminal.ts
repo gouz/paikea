@@ -24,13 +24,22 @@ export function useTerminalSize() {
 
 const FIXED_LINES = 9;
 
-export function useLayout() {
-  const { rows } = useTerminalSize();
+export interface LayoutOptions {
+  showThinking: boolean;
+  showAgent: boolean;
+}
+
+export function useLayout({ showThinking, showAgent }: LayoutOptions) {
+  const { rows, columns } = useTerminalSize();
   const contentHeight = Math.max(4, rows - FIXED_LINES);
 
-  const thinkingMax = Math.min(Math.floor(contentHeight * 0.25), 8);
-  const agentMax = Math.min(Math.floor(contentHeight * 0.25), 6);
+  const thinkingMax = showThinking
+    ? Math.min(Math.floor(contentHeight * 0.25), 8)
+    : 0;
+  const agentMax = showAgent
+    ? Math.min(Math.floor(contentHeight * 0.25), 6)
+    : 0;
   const resultHeight = Math.max(3, contentHeight - thinkingMax - agentMax);
 
-  return { contentHeight, thinkingMax, agentMax, resultHeight };
+  return { contentHeight, thinkingMax, agentMax, resultHeight, columns, rows };
 }

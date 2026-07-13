@@ -1,5 +1,49 @@
 import { describe, expect, it } from "bun:test";
-import { computeSuggestions, getCurrentStepId } from "../services/suggestions";
+import {
+  computeStepCommands,
+  computeSuggestions,
+  getCurrentStepId,
+  matchStepCommand,
+} from "../services/suggestions";
+
+const STEPS = ["discuss", "proposal", "design", "specs", "tasks", "apply"];
+
+describe("computeStepCommands", () => {
+  it("lists all step commands for a bare slash", () => {
+    expect(computeStepCommands("/", STEPS)).toEqual([
+      "/discuss",
+      "/proposal",
+      "/design",
+      "/specs",
+      "/tasks",
+      "/apply",
+    ]);
+  });
+
+  it("filters by prefix", () => {
+    expect(computeStepCommands("/pro", STEPS)).toEqual(["/proposal"]);
+    expect(computeStepCommands("/t", STEPS)).toEqual(["/tasks"]);
+  });
+});
+
+describe("matchStepCommand", () => {
+  it("resolves an exact command", () => {
+    expect(matchStepCommand("/apply", STEPS)).toBe("apply");
+    expect(matchStepCommand("  /discuss  ", STEPS)).toBe("discuss");
+  });
+
+  it("resolves a unique prefix", () => {
+    expect(matchStepCommand("/propose", STEPS)).toBe("proposal");
+    expect(matchStepCommand("/ap", STEPS)).toBe("apply");
+  });
+
+  it("returns null for ambiguous, unknown or non-commands", () => {
+    expect(matchStepCommand("/d", STEPS)).toBeNull(); // discuss + design
+    expect(matchStepCommand("/nope", STEPS)).toBeNull();
+    expect(matchStepCommand("hello", STEPS)).toBeNull();
+    expect(matchStepCommand("/", STEPS)).toBeNull();
+  });
+});
 
 describe("computeSuggestions", () => {
   it("should return discuss suggestions for empty prompt", () => {
@@ -19,8 +63,8 @@ describe("computeSuggestions", () => {
     expect(suggestions).toHaveLength(0);
   });
 
-  it("should return propose suggestions for propose step", () => {
-    const suggestions = computeSuggestions("", "propose");
+  it("should return proposal suggestions for proposal step", () => {
+    const suggestions = computeSuggestions("", "proposal");
     expect(suggestions.length).toBeGreaterThan(0);
     expect(suggestions.some((s) => s.includes("proposal"))).toBe(true);
   });
@@ -28,9 +72,9 @@ describe("computeSuggestions", () => {
   it("should return all suggestions for empty prompt regardless of step", () => {
     for (const step of [
       "discuss",
-      "propose",
-      "plan",
+      "proposal",
       "design",
+      "specs",
       "tasks",
       "apply",
       "archive",

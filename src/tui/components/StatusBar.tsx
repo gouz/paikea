@@ -1,48 +1,77 @@
 import { Box, Text } from "ink";
 import type { Model } from "../../types";
-import { symbols, t } from "../theme";
+import { useElapsed, useSpinner } from "../hooks/use-spinner";
+import { t } from "../theme";
 
 interface StatusBarProps {
   model: Model | null;
+  stepName: string | null;
   tokens: number;
   streaming: boolean;
   confirmQuit: boolean;
+  canFocusPanes: boolean;
 }
 
+// The whole bar is a single Text with truncate-end so it never wraps to a
+// second line and breaks the fixed-height layout on narrow terminals.
 export function StatusBar({
   model,
+  stepName,
   tokens,
   streaming,
   confirmQuit,
+  canFocusPanes,
 }: StatusBarProps) {
-  return (
-    <Box>
-      {confirmQuit ? (
-        <Text color={t().fg.accent} bold>
-          {" "}
-          sure quit? (esc again){" "}
-        </Text>
-      ) : streaming ? (
-        <Text color={t().fg.accent} bold>
-          {" "}
-          {
-            symbols.spinner[
-              Math.floor(Date.now() / 100) % symbols.spinner.length
-            ]
-          }{" "}
-          streaming{" "}
-        </Text>
-      ) : (
-        <>
-          <Text color={t().fg.primary}>
+  const spinner = useSpinner(streaming);
+  const elapsed = useElapsed(streaming);
+
+  if (confirmQuit) {
+    return (
+      <Box height={1}>
+        <Text wrap="truncate-end">
+          <Text color={t().fg.warning} bold>
             {" "}
-            {symbols.gear} {model?.name ?? "none"}
+            quit paikea? esc again to confirm{" "}
           </Text>
-          <Text color={t().fg.dim}> · tokens {tokens}</Text>
-          <Text> </Text>
-          <Text color={t().fg.dim}>ctrl+p palette · esc quit</Text>
-        </>
-      )}
+          <Text color={t().fg.dim}>· any other key to stay</Text>
+        </Text>
+      </Box>
+    );
+  }
+
+  if (streaming) {
+    return (
+      <Box height={1}>
+        <Text wrap="truncate-end">
+          <Text color={t().fg.accent} bold>
+            {" "}
+            {spinner} generating
+          </Text>
+          <Text color={t().fg.dim}>
+            {" "}
+            · {model?.name ?? "none"} · {elapsed}s
+            {tokens > 0 ? ` · thinking ${tokens}` : ""} · esc to cancel
+          </Text>
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box height={1}>
+      <Text wrap="truncate-end">
+        {stepName ? (
+          <Text color={t().fg.accent}> · cap {stepName.toLowerCase()}</Text>
+        ) : null}
+        {tokens > 0 ? (
+          <Text color={t().fg.dim}> · thinking {tokens}</Text>
+        ) : null}
+        <Text color={t().fg.dim}>
+          {" "}
+          · ↑↓ scroll{canFocusPanes ? " · ctrl+t pane" : ""} · tab model · /step
+          switch · ctrl+p palette · esc quit
+        </Text>
+      </Text>
     </Box>
   );
 }

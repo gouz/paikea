@@ -6,11 +6,29 @@ A full-screen TUI CLI agent powered by local LLMs via [Docker Model Runner](http
 paikea
 ```
 
+## Documentation
+
+Full docs live in [`docs/`](docs/index.md), organized with the
+[Diátaxis](https://diataxis.fr) framework:
+
+- **[Tutorial — Getting started](docs/tutorials/getting-started.md)**
+- **How-to** — [connection](docs/how-to/configure-dmr-connection.md) ·
+  [speed](docs/how-to/speed-up-responses.md) ·
+  [workflow](docs/how-to/drive-the-workflow.md) ·
+  [appearance](docs/how-to/customize-appearance.md)
+- **Reference** — [configuration](docs/reference/configuration.md) ·
+  [keybindings](docs/reference/keybindings.md) ·
+  [CLI](docs/reference/cli.md) · [tools](docs/reference/tools.md)
+- **Explanation** — [architecture](docs/explanation/architecture.md) ·
+  [workflow frise](docs/explanation/workflow-frise.md) ·
+  [speed & context](docs/explanation/speed-and-context.md)
+
 ## Features
 
 - **Full-screen TUI** — React/Ink components with flexbox layout
 - **Local LLMs** — streams via Docker Model Runner (OpenAI-compatible API at `localhost:12434`)
 - **Model switching** — Tab / Shift+Tab cycles through available models, or `M` to pick from a list
+- **Marine themes** — five ocean palettes (`deep-sea`, `dawn`, `storm`, `lagoon`, `polar-night`) with nautical iconography, switchable from the command palette
 - **Thinking support** — detects and renders chain-of-thought from Qwen3, DeepSeek-R1, OpenAI o-series
 - **OpenSpec integration** — detects propose → plan → design → tasks → apply → archive workflow
 - **Skills & rules** — loads from bundled defaults + `.paikea/` + `.claude/` project overrides
@@ -19,11 +37,49 @@ paikea
 - **Diátaxis docs** — `paikea doc` generates tutorials, how-to, reference, and explanation documentation
 - **Single binary** — compiles to a self-contained executable via `bun build --compile`
 
+## Configuration
+
+paikea reads `~/.paikea/config.json`. All fields are optional:
+
+```json
+{
+  "theme": "deep-sea",
+  "dmrScheme": "http",
+  "dmrHost": "localhost",
+  "dmrPort": 12434,
+  "thinking": false
+}
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `theme` | terminal-detected | Active marine theme (see below) |
+| `dmrScheme` | `http` | Scheme of the Docker Model Runner API. Only `https` overrides the default. |
+| `dmrHost` | `localhost` | Host of the DMR API (hostname or IP, no scheme). A blank value falls back to the default. |
+| `dmrPort` | `12434` | Port of the DMR API. An out-of-range or non-integer value falls back to the default. |
+| `thinking` | `false` | Whether thinking-capable models reason before answering. Left off for faster, direct responses; set `true` (or toggle from `Ctrl+P`) to re-enable chain-of-thought. |
+
+The scheme/host/port form the base URL `<scheme>://<host>:<port>/engines/v1` — point paikea at a remote or containerised runner by setting these.
+
+### Speed & context
+
+Responses are gated by two things on small local models: prompt-eval time
+(how many tokens the model must read every turn) and the model's context
+window. paikea keeps the system prompt small — skill instructions are loaded
+on demand via the `read_skill` tool rather than injected in full — and leaves
+model reasoning off by default (`thinking: false`). The context window itself
+is fixed when Docker Model Runner loads the model; raise it with:
+
+```bash
+docker model configure <model> --context-size 16384
+```
+
 ## Prerequisites
 
 - [Bun](https://bun.sh) (v1.3+)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) with Model Runner enabled
 - At least one model pulled (e.g. `ai/qwen3`)
+- _(optional)_ [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI — `npm i -g @fission-ai/openspec` — to drive the workflow frise. Without it, paikea runs as a plain chat with a single **Discuss** step.
 
 ## Install
 
@@ -58,14 +114,28 @@ paikea
 | `Enter` | Submit prompt |
 | `Escape` | Cancel generation (while streaming) · Quit (when idle) |
 | `Ctrl+C` / `Ctrl+D` | Cancel generation, or quit |
-| `Tab` | Accept suggestion, or next model |
+| `Tab` | Accept suggestion, or next model when there is none |
 | `Shift+Tab` | Previous model |
-| `↑` | Open toolbar |
-| `:` | Open command palette |
+| `Ctrl+P` | Open command palette (models, themes, steps…) |
+| `/discuss`, `/proposal`, `/design`, `/specs`, `/tasks`, `/apply`, `/archive` | Switch OpenSpec step — type the command (Tab autocompletes) and press Enter. A unique prefix works too (`/pro` → proposal). |
+| `Alt+←`/`Alt+→` | Previous / next OpenSpec step (if your terminal forwards Alt+arrows) |
 | `←/→` | Move cursor in prompt |
 | `Home`/`End` · `Ctrl+A`/`Ctrl+E` | Jump to start/end of prompt |
 | `Ctrl+W` / `Ctrl+U` | Delete previous word / to line start |
-| `PageUp`/`PageDown` · `Shift+↑`/`Shift+↓` | Scroll the response |
+| `↑`/`↓` · `PageUp`/`PageDown` · `Shift+↑`/`Shift+↓` | Scroll the focused pane (anchored to the latest output) |
+| `Ctrl+T` | Switch scroll focus between the thinking and response panes |
+
+The workflow frise is read from the OpenSpec CLI: **Discuss** (a free-form
+step that never touches OpenSpec) followed by the active change's real
+artifacts (`Proposal → Design → Specs → Tasks`, from `openspec status`), then
+`Apply` (task implementation progress) and `Archive`. paikea tracks the most
+recently modified in-progress change; if the CLI isn't installed or the repo
+isn't an OpenSpec project, only the **Discuss** step is shown.
+
+The selected step drives the session: prompt suggestions, the step-matching
+`openspec-*` skills injected into the system prompt, and step-specific
+guidance (`openspec new change`, `openspec validate`, `openspec archive`…). It
+defaults to the current step and refreshes after each turn.
 
 ### Initialize a project
 

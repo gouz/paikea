@@ -95,15 +95,52 @@ function parseSkillFile(content: string): Skill | null {
   return { name, description, triggers, content: body.trim() };
 }
 
+// Skills whose name contains "openspec" are step-specific: they are only
+// injected when the active workflow step matches one of these keywords.
+// All other skills are always available.
+// The proposal → design → specs → tasks artifacts are all authored by the
+// "propose" family of skills, so they stay available across those steps.
+const OPENSPEC_STEP_KEYWORDS: Record<string, string[]> = {
+  discuss: [],
+  proposal: ["propose", "proposal"],
+  design: ["propose", "proposal", "design"],
+  specs: ["propose", "proposal", "spec"],
+  tasks: ["propose", "proposal", "task"],
+  apply: ["apply"],
+  archive: ["archive"],
+};
+
+export function filterSkillsForStep(skills: Skill[], stepId: string): Skill[] {
+  const keywords = OPENSPEC_STEP_KEYWORDS[stepId] ?? [];
+  return skills.filter((skill) => {
+    const name = skill.name.toLowerCase();
+    if (!name.includes("openspec")) return true;
+    return keywords.some((k) => name.includes(k));
+  });
+}
+
+// A manifest only: names + one-line descriptions. Injecting every SKILL.md
+// body cost ~3000 tokens and was re-evaluated on every turn; instead the model
+// loads a skill's full instructions on demand with the `read_skill` tool.
 export function buildSkillsPrompt(skills: Skill[]): string {
   if (skills.length === 0) return "";
 
-  let prompt = "\n## Available Skills\n\n";
+  let prompt =
+    "\n## Available Skills\n\n" +
+    "When a task matches one of these skills, call the `read_skill` tool with " +
+    "its name to load the full instructions before proceeding.\n\n";
   for (const skill of skills) {
-    prompt += `### ${skill.name}\n`;
-    prompt += `${skill.description}\n\n`;
-    prompt += `${skill.content}\n\n`;
+    prompt += `- \`${skill.name}\`: ${skill.description}\n`;
   }
+  prompt += "\n";
 
   return prompt;
+}
+
+// Full instructions for a single skill, loaded on demand by the read_skill
+// tool. Returns null when no skill by that name is available.
+export function getSkillContent(skills: Skill[], name: string): string | null {
+  const skill = skills.find((s) => s.name === name);
+  if (!skill) return null;
+  return `# ${skill.name}\n\n${skill.description}\n\n${skill.content}`;
 }
