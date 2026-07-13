@@ -1,0 +1,31 @@
+{
+  "name": "paikea",
+  "version": "0.1.0",
+  "module": "src/cli/index.ts",
+  "type": "module",
+  "bin": {
+    "paikea": "dist/paikea"
+  },
+  "scripts": {
+    "dev": "bun run src/cli/index.ts",
+    "build": "bun run build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/",
+    "check": "bun run typecheck && bun run lint && bun run test"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "@hexie/tui": "^0.0.2",
+    "clipse": "^0.0.18"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
