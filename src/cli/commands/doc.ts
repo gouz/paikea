@@ -6,7 +6,7 @@ import {
 } from "../../services/doc-generator";
 
 export async function docHandler(opts: { output: string; scope: string }) {
-  intro("paikea doc — Diátaxis documentation");
+  intro("🏄 paikea doc — Diátaxis documentation");
 
   const config: DiataxisConfig = {
     outputDir: opts.output,

@@ -38,7 +38,7 @@ obsidianCmd.action(() => obsidianHandler());
 
 const cli = new Clipse(
   "paikea",
-  "AI CLI agent — local LLMs via Docker Model Runner",
+  "🏄 Paikea — AI CLI agent powered by local LLMs",
   "0.1.0",
 );
 

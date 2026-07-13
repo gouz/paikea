@@ -16,7 +16,7 @@ export function renderHeader(
   }
 
   // Title
-  term.putText(row, 1, "paikea", {
+  term.putText(row, 1, "🏄 paikea", {
     bold: true,
     fg: theme.fg.accent,
     bg: theme.bg.header,
@@ -24,7 +24,7 @@ export function renderHeader(
 
   // Model pill
   const pill = ` ${theme.symbols.gear} ${modelName} `;
-  term.putText(row, 10, pill, {
+  term.putText(row, 12, pill, {
     fg: theme.fg.primary,
     bg: theme.bg.panel,
   });

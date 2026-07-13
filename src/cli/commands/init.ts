@@ -11,7 +11,7 @@ import { askStackQuestions } from "../prompts/stack-questions";
 
 export async function initHandler() {
   try {
-    intro("paikea init");
+    intro("🏄 paikea init");
 
     const config = await askStackQuestions();
 
