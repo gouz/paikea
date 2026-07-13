@@ -1,4 +1,4 @@
-# Paikal
+# Paikea
 
 A full-screen TUI CLI agent powered by local LLMs via [Docker Model Runner](https://docs.docker.com/desktop/features/model-runner/).
 
