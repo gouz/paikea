@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 import { Box, Text } from "ink";
 import type { Model } from "../../types";
+import { VERSION } from "../../version";
 import { symbols, t } from "../theme";
 
 interface HeaderProps {
@@ -16,6 +17,7 @@ export function Header({ model, modelCount }: HeaderProps) {
           <Text bold color={t().fg.accent}>
             🏄 paikea
           </Text>
+          <Text color={t().fg.dim}> {VERSION}</Text>
           <Text color={t().fg.dim}> {symbols.divider} </Text>
           <Text color={t().fg.primary}>
             {symbols.gear} {model?.name ?? "none"}
