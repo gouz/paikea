@@ -1,3 +1,4 @@
+import { getDmrBaseUrl } from "../state/config";
 import type {
   DMRChatChunk,
   DMRChatRequest,
@@ -6,11 +7,9 @@ import type {
   ToolDefinition,
 } from "../types";
 
-const DMR_BASE = "http://localhost:12434/engines/v1";
-
 export async function listModels(): Promise<Model[]> {
   try {
-    const res = await fetch(`${DMR_BASE}/models`);
+    const res = await fetch(`${getDmrBaseUrl()}/models`);
     const data: unknown = await res.json();
     const typed = data as { data?: { id: string }[] };
     return (typed.data ?? []).map((m) => ({
@@ -38,17 +37,25 @@ export async function* streamChat(
   model: string,
   tools?: ToolDefinition[],
   signal?: AbortSignal,
+  disableThinking?: boolean,
 ): AsyncGenerator<StreamChunk> {
   const body: DMRChatRequest & {
     tools?: {
       type: "function";
       function: { name: string; description: string; parameters: unknown };
     }[];
+    chat_template_kwargs?: { enable_thinking: boolean };
   } = {
     model,
     messages,
     stream: true,
   };
+
+  // Qwen3-family templates honour enable_thinking via chat_template_kwargs;
+  // disabling it skips the model's chain-of-thought for faster answers.
+  if (disableThinking) {
+    body.chat_template_kwargs = { enable_thinking: false };
+  }
 
   if (tools && tools.length > 0) {
     body.tools = tools.map((t) => ({
@@ -62,8 +69,9 @@ export async function* streamChat(
   }
 
   const toolCallAccumulators = new Map<number, StreamToolCallAcc>();
+  const endpoint = `${getDmrBaseUrl()}/chat/completions`;
 
-  const res = await fetch(`${DMR_BASE}/chat/completions`, {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -73,7 +81,7 @@ export async function* streamChat(
   // If tools caused a 400, retry without them
   if (!res.ok && res.status === 400 && body.tools) {
     delete body.tools;
-    const retryRes = await fetch(`${DMR_BASE}/chat/completions`, {
+    const retryRes = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
