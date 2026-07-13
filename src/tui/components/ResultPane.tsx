@@ -1,6 +1,13 @@
-import { Box, Text } from "ink";
+import { Box, type DOMElement, Text } from "ink";
+import type { Ref } from "react";
 import { useSpinner } from "../hooks/use-spinner";
-import { symbols, t } from "../theme";
+import { t } from "../theme";
+import {
+  computeVisible,
+  displayText,
+  type Selection,
+  selectionRangeForLine,
+} from "./result-view";
 
 interface ResultPaneProps {
   content: string;
@@ -9,6 +16,8 @@ interface ResultPaneProps {
   streaming: boolean;
   hasHistory: boolean;
   focused: boolean;
+  selection: Selection | null;
+  contentRef: Ref<DOMElement>;
 }
 
 export function ResultPane({
@@ -18,19 +27,17 @@ export function ResultPane({
   streaming,
   hasHistory,
   focused,
+  selection,
+  contentRef,
 }: ResultPaneProps) {
   const height = Math.max(3, maxHeight);
   const spinner = useSpinner(streaming && !content);
-  const maxLines = height - 2;
 
-  const lines = content ? content.split("\n") : [];
-  // scrollOffset counts from the bottom: 0 = follow the tail
-  const clampedOffset = Math.min(
+  const { lines, start, end, maxLines } = computeVisible(
+    content,
     scrollOffset,
-    Math.max(0, lines.length - maxLines),
+    maxHeight,
   );
-  const start = Math.max(0, lines.length - maxLines - clampedOffset);
-  const end = start + maxLines;
   const overflow = lines.length > maxLines;
 
   const title = overflow
@@ -49,12 +56,17 @@ export function ResultPane({
         <Text color={t().fg.accent} bold>
           {title}
         </Text>
-        {overflow && clampedOffset > 0 && (
+        {overflow && scrollOffset > 0 && (
           <Text color={t().fg.dim}> ▼ shift+↓ latest</Text>
         )}
       </Box>
       {content ? (
-        <ResultContent lines={lines.slice(start, end)} startLine={start} />
+        <ResultContent
+          lines={lines.slice(start, end)}
+          startLine={start}
+          selection={selection}
+          contentRef={contentRef}
+        />
       ) : streaming ? (
         <Text color={t().fg.dim}>{spinner} awaiting response...</Text>
       ) : (
@@ -95,47 +107,48 @@ function Welcome({
       {"  "}↑/↓{"        "}scroll · ctrl+t switches thinking / response
     </Text>,
     <Text key="l8" color={t().fg.dim}>
-      {"  "}/step{"      "}switch workflow step (/discuss, /proposal, /apply…)
+      {"  "}drag{"       "}select text in response → copied to clipboard
     </Text>,
   ];
   return <Box flexDirection="column">{lines.slice(0, maxLines)}</Box>;
 }
 
+// Styling role for a raw response line, mirroring the lightweight markdown in
+// displayText(). Kept alongside the text transform so the two never drift.
+function lineStyle(line: string): { color: string; bold: boolean } {
+  if (line.startsWith("# ")) return { color: t().fg.accent, bold: true };
+  if (line.startsWith("## ")) return { color: t().fg.accent, bold: false };
+  if (line.startsWith("### ")) return { color: t().fg.warning, bold: false };
+  if (line.startsWith("**") && line.endsWith("**"))
+    return { color: t().fg.primary, bold: true };
+  if (line.startsWith("```")) return { color: t().fg.dim, bold: false };
+  if (line.startsWith("- ")) return { color: t().fg.secondary, bold: false };
+  if (/^\d+\.\s/.test(line)) return { color: t().fg.secondary, bold: false };
+  return { color: t().fg.primary, bold: false };
+}
+
 function ResultContent({
   lines,
   startLine,
+  selection,
+  contentRef,
 }: {
   lines: string[];
   startLine: number;
+  selection: Selection | null;
+  contentRef: Ref<DOMElement>;
 }) {
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" ref={contentRef}>
       {lines.map((line, idx) => {
-        let displayLine = line;
-        let color = t().fg.primary;
-        let bold = false;
-
-        if (line.startsWith("# ")) {
-          displayLine = line.slice(2);
-          color = t().fg.accent;
-          bold = true;
-        } else if (line.startsWith("## ")) {
-          displayLine = line.slice(3);
-          color = t().fg.accent;
-        } else if (line.startsWith("### ")) {
-          displayLine = line.slice(4);
-          color = t().fg.warning;
-        } else if (line.startsWith("**") && line.endsWith("**")) {
-          displayLine = line.slice(2, -2);
-          bold = true;
-        } else if (line.startsWith("```")) {
-          color = t().fg.dim;
-        } else if (line.startsWith("- ")) {
-          displayLine = `  ${symbols.dot} ${line.slice(2)}`;
-          color = t().fg.secondary;
-        } else if (/^\d+\.\s/.test(line)) {
-          color = t().fg.secondary;
-        }
+        const displayLine = displayText(line);
+        const { color, bold } = lineStyle(line);
+        const globalLine = startLine + idx;
+        const range = selectionRangeForLine(
+          selection,
+          globalLine,
+          displayLine.length,
+        );
 
         return (
           <Text
@@ -145,10 +158,53 @@ function ResultContent({
             bold={bold}
             wrap="truncate-end"
           >
-            {displayLine}
+            {range
+              ? renderHighlighted(displayLine, range, color, bold)
+              : displayLine}
           </Text>
         );
       })}
     </Box>
+  );
+}
+
+// Split a line into before / selected / after spans, styling the selected span
+// with an inverted swatch so the copied region is visible.
+function renderHighlighted(
+  text: string,
+  [from, to]: [number, number],
+  color: string,
+  bold: boolean,
+) {
+  // A fully-selected blank line has nothing to paint; show a single swatch so
+  // the user can tell the empty line is part of the selection.
+  if (text.length === 0) {
+    return (
+      <Text backgroundColor={t().fg.accent} color={t().bg.panel}>
+        {" "}
+      </Text>
+    );
+  }
+  const before = text.slice(0, from);
+  const selected = text.slice(from, to);
+  const after = text.slice(to);
+  return (
+    <>
+      {before && (
+        <Text color={color} bold={bold}>
+          {before}
+        </Text>
+      )}
+      {selected && (
+        <Text backgroundColor={t().fg.accent} color={t().bg.panel} bold={bold}>
+          {selected}
+        </Text>
+      )}
+      {after && (
+        <Text color={color} bold={bold}>
+          {after}
+        </Text>
+      )}
+    </>
   );
 }

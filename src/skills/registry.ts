@@ -6,6 +6,10 @@ export interface Skill {
   description: string;
   triggers: string[];
   content: string;
+  // Internal skills back paikea's own plumbing (e.g. the Obsidian vault used to
+  // store spec/decision docs). They are loaded but never advertised to the
+  // model, so the user's own project work isn't nudged toward them.
+  internal: boolean;
 }
 
 export function loadSkills(projectDir: string): Skill[] {
@@ -78,8 +82,9 @@ function parseSkillFile(content: string): Skill | null {
   const frontmatter = frontmatterMatch[1] ?? "";
   const body = frontmatterMatch[2] ?? "";
   const name = frontmatter.match(/^name:\s*(.+)$/m)?.[1]?.trim();
-  const description = frontmatter.match(/^description:\s*(.+)$/m)?.[1]?.trim();
+  const description = parseDescription(frontmatter);
   const triggersRaw = frontmatter.match(/^triggers:\n((?:\s*-\s*.+\n?)+)/m);
+  const internal = /^internal:\s*true\b/m.test(frontmatter);
 
   if (!name || !description) return null;
 
@@ -92,31 +97,42 @@ function parseSkillFile(content: string): Skill | null {
     }
   }
 
-  return { name, description, triggers, content: body.trim() };
+  return { name, description, triggers, content: body.trim(), internal };
 }
 
-// Skills whose name contains "openspec" are step-specific: they are only
-// injected when the active workflow step matches one of these keywords.
-// All other skills are always available.
-// The proposal → design → specs → tasks artifacts are all authored by the
-// "propose" family of skills, so they stay available across those steps.
-const OPENSPEC_STEP_KEYWORDS: Record<string, string[]> = {
-  discuss: [],
-  proposal: ["propose", "proposal"],
-  design: ["propose", "proposal", "design"],
-  specs: ["propose", "proposal", "spec"],
-  tasks: ["propose", "proposal", "task"],
-  apply: ["apply"],
-  archive: ["archive"],
-};
+// Read a frontmatter `description`, supporting both an inline value and YAML
+// folded/literal block scalars (`description: >` followed by indented lines) —
+// otherwise a folded description parses as the bare `>` marker.
+function parseDescription(frontmatter: string): string | undefined {
+  const inline = frontmatter.match(/^description:[ \t]*([^\s>|][^\n]*)$/m);
+  if (inline?.[1]?.trim()) return inline[1].trim();
 
-export function filterSkillsForStep(skills: Skill[], stepId: string): Skill[] {
-  const keywords = OPENSPEC_STEP_KEYWORDS[stepId] ?? [];
-  return skills.filter((skill) => {
-    const name = skill.name.toLowerCase();
-    if (!name.includes("openspec")) return true;
-    return keywords.some((k) => name.includes(k));
-  });
+  const block = frontmatter.match(
+    /^description:[ \t]*[>|][^\n]*\n((?:[ \t]+.*\n?)+)/m,
+  );
+  if (block?.[1]) {
+    return block[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+  return undefined;
+}
+
+// The skills advertised to the model. Only user-facing skills reach it:
+// paikea's own plumbing stays under the hood so the user's project work isn't
+// nudged toward it or warned about "conflicts" with it. That plumbing is
+//   - `internal`-flagged skills (e.g. the Obsidian vault backing spec/decision
+//     docs), and
+//   - the OpenSpec workflow skills (name contains "openspec"), which paikea
+//     drives itself via the per-step Workflow guidance, not by the model
+//     picking them as a capability.
+export function advertisedSkills(skills: Skill[]): Skill[] {
+  return skills.filter(
+    (skill) =>
+      !skill.internal && !skill.name.toLowerCase().includes("openspec"),
+  );
 }
 
 // A manifest only: names + one-line descriptions. Injecting every SKILL.md

@@ -1,6 +1,7 @@
 ---
 name: obsidian-cli
 version: "1.3.0"
+internal: true
 description: >
   Use this skill whenever the user wants Claude to directly interact with their
   Obsidian vault — reading a note or daily note, writing or appending content,

@@ -10,6 +10,7 @@ interface StatusBarProps {
   streaming: boolean;
   confirmQuit: boolean;
   canFocusPanes: boolean;
+  notice: string;
 }
 
 // The whole bar is a single Text with truncate-end so it never wraps to a
@@ -21,9 +22,23 @@ export function StatusBar({
   streaming,
   confirmQuit,
   canFocusPanes,
+  notice,
 }: StatusBarProps) {
   const spinner = useSpinner(streaming);
   const elapsed = useElapsed(streaming);
+
+  if (notice && !streaming && !confirmQuit) {
+    return (
+      <Box height={1}>
+        <Text wrap="truncate-end">
+          <Text color={t().fg.success} bold>
+            {" "}
+            ✓ {notice}
+          </Text>
+        </Text>
+      </Box>
+    );
+  }
 
   if (confirmQuit) {
     return (

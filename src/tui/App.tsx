@@ -1,6 +1,7 @@
-import { Box, useApp, useInput } from "ink";
+import { Box, type DOMElement, useApp, useInput } from "ink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildRulesPrompt, loadRules } from "../rules/registry";
+import { copyToClipboard } from "../services/clipboard";
 import { streamChat } from "../services/dmr-client";
 import { fetchModels, nextModel, prevModel } from "../services/model-registry";
 import {
@@ -14,8 +15,8 @@ import {
 } from "../services/suggestions";
 import { hasThinkingSupport } from "../services/thinking-parser";
 import {
+  advertisedSkills,
   buildSkillsPrompt,
-  filterSkillsForStep,
   loadSkills,
   type Skill,
 } from "../skills/registry";
@@ -42,10 +43,20 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Header } from "./components/Header";
 import { PromptInput } from "./components/PromptInput";
 import { ResultPane } from "./components/ResultPane";
+import {
+  computeVisible,
+  displayText,
+  extractSelection,
+  type Selection,
+  type SelectionPos,
+} from "./components/result-view";
 import { StatusBar } from "./components/StatusBar";
 import { ThinkingPane } from "./components/ThinkingPane";
 import { Timeline } from "./components/Timeline";
+import { absolutePosition } from "./dom-position";
+import { useMouseTracking } from "./hooks/use-mouse-tracking";
 import { useLayout } from "./hooks/use-terminal";
+import { parseMouseEvent } from "./mouse";
 import { getThemeNames, setThemeByName } from "./theme";
 
 const MAX_TOOL_ITERATIONS = 10;
@@ -106,6 +117,8 @@ interface AppState {
   confirmQuit: boolean;
   selectedStepIndex: number;
   themeTick: number;
+  selection: Selection | null;
+  notice: string;
 }
 
 export function App() {
@@ -132,11 +145,16 @@ export function App() {
     confirmQuit: false,
     selectedStepIndex: 0,
     themeTick: 0,
+    selection: null,
+    notice: "",
   });
 
   const [prompt, setPrompt] = useState("");
   const [cursorPos, setCursorPos] = useState(0);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const contentBoxRef = useRef<DOMElement | null>(null);
+  const draggingRef = useRef(false);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cwd = useRef(process.cwd());
   const sessionId = useRef(createSessionId());
   const skillsRef = useRef<Skill[]>([]);
@@ -191,6 +209,27 @@ export function App() {
     setState((s) => ({ ...s, ...partial }));
   }, []);
 
+  // Take over mouse events so a drag in the response pane can copy to the
+  // clipboard. This disables the terminal's own text selection.
+  useMouseTracking();
+
+  // Show a transient status message (e.g. "copied") that clears itself.
+  const showNotice = useCallback(
+    (message: string) => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+      update({ notice: message });
+      noticeTimerRef.current = setTimeout(() => update({ notice: "" }), 2500);
+    },
+    [update],
+  );
+
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(async () => {
     if (!prompt.trim() || !state.model || state.streaming) return;
 
@@ -230,6 +269,7 @@ export function App() {
       scrollOffset: 0,
       thinkingScrollOffset: 0,
       scrollFocus: "response",
+      selection: null,
       messages: [...state.messages, userMessage],
     });
 
@@ -240,10 +280,10 @@ export function App() {
     const disableThinking = modelSupportsThinking && !state.thinkingEnabled;
 
     // Build the system prompt for the active step: only matching openspec
-    // skills are injected, plus step-specific workflow guidance
+    // user-facing skills are advertised, plus step-specific workflow guidance
     const stepId = stepIdAt(state.steps, state.selectedStepIndex);
     const systemPrompt =
-      buildSkillsPrompt(filterSkillsForStep(skillsRef.current, stepId)) +
+      buildSkillsPrompt(advertisedSkills(skillsRef.current)) +
       rulesPromptRef.current +
       buildStepPrompt(stepId);
 
@@ -444,6 +484,7 @@ export function App() {
           scrollOffset: 0,
           thinkingScrollOffset: 0,
           scrollFocus: "response",
+          selection: null,
         }),
     },
     {
@@ -463,6 +504,42 @@ export function App() {
     [update],
   );
 
+  const thinkingActive = state.streaming && state.thinking.active;
+  const showThinking = isThinkingShown(state);
+  const showAgent = state.agentSteps.length > 0;
+  const scrollFocus = showThinking ? state.scrollFocus : "response";
+  const layout = useLayout({ showThinking, showAgent });
+
+  // Translate a 1-based terminal cell (col, row) into a position inside the
+  // response content, or null when the cell isn't over rendered text.
+  const mapMouse = (col: number, row: number): SelectionPos | null => {
+    const node = contentBoxRef.current;
+    if (!node || !state.result) return null;
+    const { top, left } = absolutePosition(node);
+    const view = computeVisible(
+      state.result,
+      state.scrollOffset,
+      layout.resultHeight,
+    );
+    const visibleCount = Math.max(
+      0,
+      Math.min(view.maxLines, view.lines.length - view.start),
+    );
+    if (visibleCount === 0) return null;
+
+    const visIdx = row - 1 - top;
+    // Clamp drags above/below the pane to the first/last visible line so a
+    // selection can be extended past the edges.
+    if (visIdx < 0) return { line: view.start, col: 0 };
+    if (visIdx >= visibleCount) {
+      const line = view.start + visibleCount - 1;
+      return { line, col: displayText(view.lines[line] ?? "").length };
+    }
+    const line = view.start + visIdx;
+    const text = displayText(view.lines[line] ?? "");
+    return { line, col: clamp(col - 1 - left, 0, text.length) };
+  };
+
   // Keyboard handler
   useInput((input, key) => {
     const s = state;
@@ -471,6 +548,55 @@ export function App() {
     if (key.ctrl && (input === "c" || input === "d")) {
       if (cancelStreaming()) return;
       quit();
+      return;
+    }
+
+    // Mouse events (SGR 1006): Ink strips the leading ESC, so a report arrives
+    // as "[<button;col;row" followed by M (press/motion) or m (release).
+    if (input.startsWith("[<")) {
+      const mouse = parseMouseEvent(input);
+      if (!mouse) return;
+
+      if (mouse.wheel) {
+        const lineCount = s.result ? s.result.split("\n").length : 0;
+        update({
+          scrollOffset: clamp(
+            s.scrollOffset + mouse.wheelDelta * 3,
+            0,
+            lineCount,
+          ),
+          selection: null,
+        });
+        return;
+      }
+
+      if (mouse.release) {
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        const sel = s.selection;
+        if (!sel) return;
+        const text = extractSelection(s.result, sel);
+        if (!text) {
+          update({ selection: null });
+          return;
+        }
+        void copyToClipboard(text);
+        const n = text.length;
+        showNotice(`copied ${n} char${n === 1 ? "" : "s"} to clipboard`);
+        return;
+      }
+
+      const pos = mapMouse(mouse.col, mouse.row);
+      if (!pos) return;
+      if (mouse.motion) {
+        // Extend the in-progress selection.
+        if (!draggingRef.current || !s.selection) return;
+        update({ selection: { anchor: s.selection.anchor, head: pos } });
+      } else {
+        // Button press — start a new selection.
+        draggingRef.current = true;
+        update({ selection: { anchor: pos, head: pos }, notice: "" });
+      }
       return;
     }
 
@@ -550,7 +676,10 @@ export function App() {
         });
       } else {
         const lineCount = s.result ? s.result.split("\n").length : 0;
-        update({ scrollOffset: clamp(s.scrollOffset + delta, 0, lineCount) });
+        update({
+          scrollOffset: clamp(s.scrollOffset + delta, 0, lineCount),
+          selection: null,
+        });
       }
     };
     if (key.pageUp || (key.upArrow && key.shift)) {
@@ -669,12 +798,6 @@ export function App() {
     }
   });
 
-  const thinkingActive = state.streaming && state.thinking.active;
-  const showThinking = isThinkingShown(state);
-  const showAgent = state.agentSteps.length > 0;
-  const scrollFocus = showThinking ? state.scrollFocus : "response";
-  const layout = useLayout({ showThinking, showAgent });
-
   return (
     <Box flexDirection="column" width="100%" height="100%">
       <Header model={state.model} modelCount={state.models.length} />
@@ -696,6 +819,8 @@ export function App() {
           streaming={state.streaming}
           hasHistory={state.messages.length > 0}
           focused={scrollFocus === "response"}
+          selection={state.selection}
+          contentRef={contentBoxRef}
         />
       </Box>
       <PromptInput
@@ -713,6 +838,7 @@ export function App() {
         streaming={state.streaming}
         confirmQuit={state.confirmQuit}
         canFocusPanes={showThinking}
+        notice={state.notice}
       />
       {state.uiMode === "palette" && (
         <CommandPalette actions={actions} selectedIndex={state.paletteIndex} />
