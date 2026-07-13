@@ -45,7 +45,6 @@ export interface AppState {
   agentSteps: AgentStep[];
   toolCallsStreaming: Map<string, { name: string; argsBuffer: string }>;
   uiMode: UIMode;
-  toolbarIndex: number;
   paletteIndex: number;
   suggestions: string[];
   suggestionIndex: number;
@@ -127,7 +126,7 @@ export interface AgentStep {
   timestamp: number;
 }
 
-export type UIMode = "normal" | "palette" | "toolbar";
+export type UIMode = "normal" | "palette";
 
 export interface Action {
   id: string;

@@ -2,7 +2,7 @@ import { Box, useApp, useInput } from "ink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildRulesPrompt, loadRules } from "../rules/registry";
 import { streamChat } from "../services/dmr-client";
-import { fetchModels, nextModel, prevModel } from "../services/model-registry";
+import { fetchModels, nextModel } from "../services/model-registry";
 import { detectOpenSpecSteps } from "../services/openspec-hook";
 import { computeSuggestions, getCurrentStepId } from "../services/suggestions";
 import { hasThinkingSupport } from "../services/thinking-parser";
@@ -33,7 +33,7 @@ import { getThemeNames, setThemeByName } from "./theme";
 
 const MAX_TOOL_ITERATIONS = 10;
 
-type UIMode = "normal" | "palette" | "toolbar";
+type UIMode = "normal" | "palette";
 
 interface AppState {
   model: Model | null;
@@ -47,7 +47,6 @@ interface AppState {
   streaming: boolean;
   agentSteps: AgentStep[];
   uiMode: UIMode;
-  toolbarIndex: number;
   paletteIndex: number;
   suggestions: string[];
   suggestionIndex: number;
@@ -72,7 +71,6 @@ export function App() {
     streaming: false,
     agentSteps: [],
     uiMode: "normal",
-    toolbarIndex: 0,
     paletteIndex: 0,
     suggestions: [],
     suggestionIndex: -1,
@@ -238,7 +236,7 @@ export function App() {
     exit();
   }, [exit]);
 
-  // Actions for palette and toolbar
+  // Actions for palette
   const themeActions: Action[] = getThemeNames().map((name) => ({
     id: `theme-${name}`,
     label: `Theme: ${name}`,
@@ -270,6 +268,27 @@ export function App() {
       label: "Toggle Thinking",
       shortcut: "",
       action: () => update({ thinkingVisible: !state.thinkingVisible }),
+    },
+    {
+      id: "step-prev",
+      label: "Step: Previous",
+      shortcut: "",
+      action: () =>
+        update({
+          selectedStepIndex: Math.max(0, state.selectedStepIndex - 1),
+        }),
+    },
+    {
+      id: "step-next",
+      label: "Step: Next",
+      shortcut: "",
+      action: () =>
+        update({
+          selectedStepIndex: Math.min(
+            state.steps.length - 1,
+            state.selectedStepIndex + 1,
+          ),
+        }),
     },
     ...themeActions,
     {
@@ -335,27 +354,6 @@ export function App() {
       return;
     }
 
-    // Toolbar mode
-    if (s.uiMode === "toolbar") {
-      if (key.escape) {
-        update({ uiMode: "normal" });
-        return;
-      }
-      if (key.tab) {
-        update({ toolbarIndex: (s.toolbarIndex + 1) % 4 });
-        return;
-      }
-      if (key.return) {
-        if (s.toolbarIndex === 3) {
-          update({ uiMode: "palette", toolbarIndex: 0 });
-        } else {
-          executeAction(actions[s.toolbarIndex]);
-        }
-        return;
-      }
-      return;
-    }
-
     // Normal mode
     if (key.escape) {
       if (s.confirmQuit) {
@@ -390,16 +388,7 @@ export function App() {
       return;
     }
 
-    // Shift+Tab = prev model
-    if (key.tab && key.shift) {
-      const newModel = prevModel();
-      if (newModel) {
-        update({ model: newModel, steps: detectOpenSpecSteps(cwd.current) });
-      }
-      return;
-    }
-
-    // Tab = accept suggestion or next model
+    // Tab = accept suggestion
     if (key.tab) {
       if (s.suggestions.length > 0 && s.uiMode === "normal") {
         const idx = s.suggestionIndex >= 0 ? s.suggestionIndex : 0;
@@ -408,30 +397,7 @@ export function App() {
           setPrompt(suggestion);
           setCursorPos(suggestion.length);
         }
-      } else {
-        const newModel = nextModel();
-        if (newModel) {
-          update({
-            model: newModel,
-            steps: detectOpenSpecSteps(cwd.current),
-          });
-        }
       }
-      return;
-    }
-
-    // Alt+Left/Right to navigate steps
-    if (key.meta && key.leftArrow) {
-      update({ selectedStepIndex: Math.max(0, s.selectedStepIndex - 1) });
-      return;
-    }
-    if (key.meta && key.rightArrow) {
-      update({
-        selectedStepIndex: Math.min(
-          s.steps.length - 1,
-          s.selectedStepIndex + 1,
-        ),
-      });
       return;
     }
 
@@ -448,14 +414,6 @@ export function App() {
     }
     if (key.rightArrow) {
       setCursorPos((p) => Math.min(prompt.length, p + 1));
-      return;
-    }
-    if (key.upArrow) {
-      update({ uiMode: "toolbar", toolbarIndex: 0 });
-      return;
-    }
-    if (key.downArrow) {
-      update({ uiMode: "normal" });
       return;
     }
 
@@ -537,8 +495,6 @@ export function App() {
         model={state.model}
         tokens={state.thinking.tokens}
         streaming={state.streaming}
-        toolbarIndex={state.toolbarIndex}
-        isToolbarMode={state.uiMode === "toolbar"}
         confirmQuit={state.confirmQuit}
       />
       {state.uiMode === "palette" && (

@@ -16,10 +16,6 @@ export function Header({ model }: HeaderProps) {
       <Text color={t().fg.primary}>
         {symbols.gear} {model?.name ?? "none"}
       </Text>
-      <Text> </Text>
-      <Text color={t().fg.dim}>
-        enter send · tab model · alt+← → steps · ctrl+p palette · esc quit
-      </Text>
     </Box>
   );
 }
