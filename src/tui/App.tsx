@@ -7,6 +7,7 @@ import { detectOpenSpecSteps } from "../services/openspec-hook";
 import { computeSuggestions, getCurrentStepId } from "../services/suggestions";
 import { hasThinkingSupport } from "../services/thinking-parser";
 import { buildSkillsPrompt, loadSkills } from "../skills/registry";
+import { getSavedTheme, saveTheme } from "../state/config";
 import { createSessionId, saveSession } from "../state/session";
 import { executeTool } from "../tools/executor";
 import { loadTools } from "../tools/registry";
@@ -27,6 +28,8 @@ import { ResultPane } from "./components/ResultPane";
 import { StatusBar } from "./components/StatusBar";
 import { ThinkingPane } from "./components/ThinkingPane";
 import { Timeline } from "./components/Timeline";
+import { useLayout } from "./hooks/use-terminal";
+import { getThemeNames, setThemeByName } from "./theme";
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -48,10 +51,13 @@ interface AppState {
   paletteIndex: number;
   suggestions: string[];
   suggestionIndex: number;
+  confirmQuit: boolean;
+  selectedStepIndex: number;
 }
 
 export function App() {
   const { exit } = useApp();
+  const layout = useLayout();
 
   const [state, setState] = useState<AppState>({
     model: null,
@@ -69,6 +75,8 @@ export function App() {
     paletteIndex: 0,
     suggestions: [],
     suggestionIndex: -1,
+    confirmQuit: false,
+    selectedStepIndex: 0,
   });
 
   const [prompt, setPrompt] = useState("");
@@ -82,6 +90,9 @@ export function App() {
   // Initialize
   useEffect(() => {
     async function init() {
+      const savedTheme = getSavedTheme();
+      setThemeByName(savedTheme);
+
       const models = await fetchModels();
       if (models.length === 0) {
         console.error(
@@ -226,6 +237,16 @@ export function App() {
   }, [exit]);
 
   // Actions for palette and toolbar
+  const themeActions: Action[] = getThemeNames().map((name) => ({
+    id: `theme-${name}`,
+    label: `Theme: ${name}`,
+    shortcut: "",
+    action: () => {
+      setThemeByName(name);
+      saveTheme(name);
+    },
+  }));
+
   const actions: Action[] = [
     {
       id: "model",
@@ -247,6 +268,7 @@ export function App() {
       shortcut: "",
       action: () => update({ thinkingVisible: !state.thinkingVisible }),
     },
+    ...themeActions,
     {
       id: "clear",
       label: "Clear",
@@ -280,7 +302,7 @@ export function App() {
   useInput((input, key) => {
     const s = state;
 
-    // Ctrl+C / Ctrl+D
+    // Ctrl+C / Ctrl+D — immediate quit
     if (key.ctrl && (input === "c" || input === "d")) {
       if (cancelStreaming()) return;
       quit();
@@ -333,8 +355,18 @@ export function App() {
 
     // Normal mode
     if (key.escape) {
+      if (s.confirmQuit) {
+        quit();
+        return;
+      }
       if (cancelStreaming()) return;
-      quit();
+      update({ confirmQuit: true });
+      return;
+    }
+
+    // Any other key dismisses quit confirmation
+    if (s.confirmQuit) {
+      update({ confirmQuit: false });
       return;
     }
 
@@ -385,8 +417,23 @@ export function App() {
       return;
     }
 
-    // : to open palette
-    if (input === ":") {
+    // Ctrl+Left/Right to navigate steps
+    if (key.ctrl && key.leftArrow) {
+      update({ selectedStepIndex: Math.max(0, s.selectedStepIndex - 1) });
+      return;
+    }
+    if (key.ctrl && key.rightArrow) {
+      update({
+        selectedStepIndex: Math.min(
+          s.steps.length - 1,
+          s.selectedStepIndex + 1,
+        ),
+      });
+      return;
+    }
+
+    // Ctrl+P to open palette
+    if (key.ctrl && input === "p") {
       update({ uiMode: "palette", paletteIndex: 0 });
       return;
     }
@@ -462,14 +509,19 @@ export function App() {
   return (
     <Box flexDirection="column" width="100%" height="100%">
       <Header model={state.model} />
-      <Timeline steps={state.steps} />
-      <Box flexDirection="column" flexGrow={1}>
+      <Timeline steps={state.steps} selectedIndex={state.selectedStepIndex} />
+      <Box flexDirection="column" flexGrow={1} overflowY="hidden">
         <ThinkingPane
           content={state.thinking.content}
           visible={state.thinkingVisible}
+          maxHeight={layout.thinkingMax}
         />
-        <AgentSteps steps={state.agentSteps} />
-        <ResultPane content={state.result} scrollOffset={state.scrollOffset} />
+        <AgentSteps steps={state.agentSteps} maxHeight={layout.agentMax} />
+        <ResultPane
+          content={state.result}
+          scrollOffset={state.scrollOffset}
+          maxHeight={layout.resultHeight}
+        />
       </Box>
       <PromptInput
         prompt={prompt}
@@ -484,6 +536,7 @@ export function App() {
         streaming={state.streaming}
         toolbarIndex={state.toolbarIndex}
         isToolbarMode={state.uiMode === "toolbar"}
+        confirmQuit={state.confirmQuit}
       />
       {state.uiMode === "palette" && (
         <CommandPalette actions={actions} selectedIndex={state.paletteIndex} />
