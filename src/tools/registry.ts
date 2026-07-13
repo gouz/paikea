@@ -61,6 +61,25 @@ function loadBundledTools(): ToolDefinition[] {
       destructive: false,
     },
     {
+      name: "read_skill",
+      description:
+        "Load the full instructions for one of the Available Skills by name. Call this before using a skill whose task you are about to perform.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description:
+              "The skill name, exactly as listed in Available Skills",
+          },
+        },
+        required: ["name"],
+      },
+      handler: "builtin",
+      sandbox: false,
+      destructive: false,
+    },
+    {
       name: "read_file",
       description:
         "Read the contents of a file. Returns the full text content of the file.",

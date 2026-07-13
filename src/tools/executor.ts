@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
+import { getSkillContent, loadSkills } from "../skills/registry";
 import type { ToolCall, ToolDefinition, ToolResult } from "../types";
 
 const BLOCKED_COMMANDS = [
@@ -108,6 +109,18 @@ async function executeBuiltin(
         success: true,
         result: await getWebpage(args.url ?? ""),
       };
+    case "read_skill": {
+      const skills = loadSkills(projectDir);
+      const content = getSkillContent(skills, args.name ?? "");
+      return {
+        toolCallId: id,
+        name,
+        success: content !== null,
+        result:
+          content ??
+          `No skill named "${args.name}". Available: ${skills.map((s) => s.name).join(", ")}`,
+      };
+    }
     case "read_file":
       return {
         toolCallId: id,
