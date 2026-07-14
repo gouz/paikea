@@ -33,8 +33,11 @@ Selecting a step is not just navigation; it reconfigures the session:
 - **Skills** are filtered — step-specific `openspec-*` skills are offered only
   on the steps they belong to.
 - **Guidance** for that step is injected into the model's system prompt (for
-  example, *Proposal* tells the model to run `openspec new change` and write
-  `proposal.md`).
+  example, *Proposal* tells the model to run `openspec new change`, write
+  `proposal.md`, and open a `feat/<name>` branch — while forbidding any
+  implementation code until *Apply*). This guidance is also what drives the
+  git automation described in
+  [Drive the OpenSpec workflow](../how-to/drive-the-workflow.md).
 
 So moving to `/specs` doesn't just move a highlight — it changes what paikea
 tells the model to do next.

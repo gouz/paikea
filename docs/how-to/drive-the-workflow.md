@@ -44,4 +44,25 @@ The command palette (**Ctrl+P**) also has **Step: Previous** / **Step: Next**
 entries, and **Refresh Workflow** to re-read the frise from the OpenSpec CLI
 after you create or advance a change.
 
-See also: [The workflow frise](../explanation/workflow-frise.md).
+## Git follows the workflow
+
+As you move through the steps, the `openspec-git` skill keeps git in lock-step
+with the OpenSpec lifecycle — the model drives the `git_*` tools at the right
+moments, so each change gets its own branch and a clean, per-task history:
+
+| Step | What happens | Tool |
+|------|--------------|------|
+| **Proposal** | A dedicated branch `feat/<change-name>` is created before any design or code | `git_propose` |
+| **Apply** | Each finished task is committed on its own (conventional-commits + gitmoji) | `git_commit` |
+| **Archive** | The change is archived, the result committed, and the branch merged into `main` | `git_archive` |
+
+`main` only ever receives a change through the archive merge — never a direct
+commit. On a repository with an `origin` remote, the branch and `main` are pushed
+too; a purely local repo just keeps the merge.
+
+Note that the pre-`apply` steps (proposal, design, specs, tasks) only produce
+OpenSpec artifacts — paikea instructs the model **not** to write implementation
+code until the **apply** step.
+
+See also: [The workflow frise](../explanation/workflow-frise.md) ·
+[Built-in tools](../reference/tools.md).

@@ -4,9 +4,9 @@ This tutorial takes you from nothing to a running paikea session and your first
 OpenSpec change. Follow every step in order; by the end you will have chatted
 with a local model and switched between workflow steps.
 
-You will need [Bun](https://bun.sh) (v1.3+) and
-[Docker Desktop](https://www.docker.com/products/docker-desktop/) with Model
-Runner enabled.
+You will need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+with Model Runner enabled. To install from source you also need
+[Bun](https://bun.sh) (v1.3+) — the Homebrew install below needs neither.
 
 ## 1. Pull a model
 
@@ -18,7 +18,14 @@ docker model pull ai/qwen3
 
 ## 2. Install and run
 
-From the project directory:
+The quickest way is Homebrew, which installs the prebuilt binary:
+
+```bash
+brew install gouz/tools/paikea
+paikea
+```
+
+Prefer to build from source? From the project directory:
 
 ```bash
 bun install

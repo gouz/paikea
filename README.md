@@ -6,6 +6,12 @@ A full-screen TUI CLI agent powered by local LLMs via [Docker Model Runner](http
 paikea
 ```
 
+> **The name.** In Māori tradition, [Paikea](https://en.wikipedia.org/wiki/Paikea)
+> is the whale rider — an ancestor who, thrown into the ocean, survived by riding
+> a whale to shore. The name sets the tone for the whole tool: an ocean voyage
+> you steer, hence the 🏄 masthead, the marine themes, and the nautical
+> vocabulary throughout ("cast off", "calm seas", the workflow *frise*).
+
 ## Documentation
 
 Full docs live in [`docs/`](docs/index.md), organized with the
@@ -30,10 +36,12 @@ Full docs live in [`docs/`](docs/index.md), organized with the
 - **Model switching** — Tab / Shift+Tab cycles through available models, or `M` to pick from a list
 - **Marine themes** — five ocean palettes (`deep-sea`, `dawn`, `storm`, `lagoon`, `polar-night`) with nautical iconography, switchable from the command palette
 - **Thinking support** — detects and renders chain-of-thought from Qwen3, DeepSeek-R1, OpenAI o-series
-- **OpenSpec integration** — detects propose → plan → design → tasks → apply → archive workflow
+- **Markdown rendering** — responses render inline emphasis (**bold**, *italic*, `code`) as well as headings, bullets, and code blocks, while leaving fenced code untouched
+- **OpenSpec integration** — detects discuss → proposal → design → specs → tasks → apply → archive workflow
+- **Git workflow** — the `openspec-git` skill ties git to the lifecycle: a `feat/<name>` branch on proposal, a commit per finished task, and a merge into `main` on archive
 - **Skills & rules** — loads from bundled defaults + `.paikea/` + `.claude/` project overrides
 - **Session persistence** — saves conversation history to `.paikea/sessions/`
-- **Project scaffolding** — `paikea init` creates a full dev environment with devcontainer, OpenSpec, vault, and Diátaxis docs
+- **Project scaffolding** — `paikea init` creates a full dev environment with a git repo, devcontainer, OpenSpec, an Obsidian vault, and Diátaxis docs
 - **Diátaxis docs** — `paikea doc` generates tutorials, how-to, reference, and explanation documentation
 - **Single binary** — compiles to a self-contained executable via `bun build --compile`
 
@@ -76,15 +84,27 @@ docker model configure <model> --context-size 16384
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) (v1.3+)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) with Model Runner enabled
 - At least one model pulled (e.g. `ai/qwen3`)
+- [Bun](https://bun.sh) (v1.3+) — only to build from source (not needed for the Homebrew install)
 - _(optional)_ [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI — `npm i -g @fission-ai/openspec` — to drive the workflow frise. Without it, paikea runs as a plain chat with a single **Discuss** step.
 
 ## Install
 
+### Homebrew (recommended)
+
 ```bash
-bun install
+brew install gouz/tools/paikea
+```
+
+This installs the prebuilt `paikea` binary and puts it on your `PATH`. Upgrade
+later with `brew upgrade gouz/tools/paikea`.
+
+### From source
+
+```bash
+bun install          # install dependencies
+bun run build        # compile to dist/paikea
 ```
 
 ## Development
@@ -144,13 +164,17 @@ paikea init
 ```
 
 Creates a new directory with:
+- **Project structure** — `src/`, `package.json`, `README.md`, `.gitignore`
 - **Devcontainer** — Dockerfile + docker-compose.yml + devcontainer.json
-- **OpenSpec** — changes/, specs/ directories
-- **Vault** — Context/, Daily/, Intelligence/, Resources/ for Obsidian
-- **Skills** — obsidian-cli, obsidian-markdown, defuddle, openspec-*, json-canvas
-- **Rules** — TypeScript strict, conventional commits, devcontainer, testing, obsidian, dev practices
+- **OpenSpec** — `openspec/changes/`, `openspec/specs/` directories
+- **Obsidian vault** — `.paikea/vault/` with `index.md` + `logs/`, `skills/`, `rules/`, `specs/`, `templates/`, openable with `obsidian .paikea/vault`
+- **Skills** — `.paikea/skills/`: obsidian-cli, openspec-git, conventional-commits…
+- **Rules** — `.paikea/rules/`: obsidian link conventions, devcontainer…
 - **AGENTS.md** — workflow rules and vault conventions
-- **Docs** — Diátaxis documentation scaffold
+- **Docs** — Diátaxis documentation scaffold under `docs/`
+- **Git repository** — `git init` on branch `main` + an initial commit of the scaffold (skipped if already a repo)
+
+See [CLI reference — `paikea init`](docs/reference/cli.md) for the full vault layout.
 
 ### Generate documentation
 

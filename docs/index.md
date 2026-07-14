@@ -2,8 +2,15 @@
 
 🏄 **paikea** is a full-screen terminal agent that talks to local LLMs through
 [Docker Model Runner](https://docs.docker.com/desktop/features/model-runner/),
-built around the OpenSpec propose → design → specs → tasks → apply → archive
-workflow.
+built around the OpenSpec discuss → proposal → design → specs → tasks → apply →
+archive workflow.
+
+> **Where the name comes from.** In Māori tradition,
+> [Paikea](https://en.wikipedia.org/wiki/Paikea) is the whale rider — an ancestor
+> who, cast into the sea, rode a whale safely to shore. paikea borrows the image:
+> a voyage across open water that you steer. It runs through the whole tool — the
+> 🏄 masthead, the five marine themes, the nautical prompts ("cast off — set a
+> course…", "calm seas — awaiting orders"), and the workflow *frise*.
 
 This documentation follows the [Diátaxis](https://diataxis.fr) framework — four
 kinds of documentation, each with a distinct job:

@@ -16,12 +16,17 @@ tools require confirmation.
 | `write_file` | `path`, `content` | **yes** | Create or overwrite a file |
 | `shell_exec` | `command` | **yes** | Run a shell command in the project directory |
 | `git_propose` | — | no | Create a `feat/<name>` branch for the latest OpenSpec change |
-| `git_commit` | `message` | no | Stage all changes and commit (conventional format) |
-| `git_archive` | — | no | Push the feature branch and archive the OpenSpec change |
+| `git_commit` | `message` | no | Stage all changes and commit (conventional-commits + gitmoji format) |
+| `git_archive` | — | no | Archive the OpenSpec change, commit the result, and merge the feature branch into `main` (pushing to origin when one exists) |
 
 `read_skill` pairs with the skills manifest in the system prompt: the prompt
 lists skills by name and description, and the model calls `read_skill` to pull a
 skill's full text only when it needs it.
+
+The three `git_*` tools are orchestrated by the `openspec-git` skill, which the
+per-step guidance triggers automatically: `git_propose` at the **proposal** step,
+`git_commit` after each finished task in **apply**, and `git_archive` at
+**archive**. See [Drive the OpenSpec workflow](../how-to/drive-the-workflow.md).
 
 ## Custom tools
 
