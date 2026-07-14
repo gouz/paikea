@@ -5,10 +5,12 @@ import {
   displayText,
   extractSelection,
   inlineSpans,
+  layoutRows,
   orderSelection,
   parseInline,
   type Selection,
   selectionRangeForLine,
+  wrapSpans,
 } from "../tui/components/result-view";
 import { parseMouseEvent } from "../tui/mouse";
 
@@ -183,6 +185,77 @@ describe("extractSelection", () => {
       head: { line: 0, col: 7 },
     };
     expect(extractSelection(md, sel)).toBe("Heading");
+  });
+});
+
+describe("wrapSpans", () => {
+  test("keeps a short line as a single row", () => {
+    expect(wrapSpans([{ text: "hello world" }], 40)).toEqual([
+      { colStart: 0, spans: [{ text: "hello world" }] },
+    ]);
+  });
+
+  test("wraps at word boundaries within the width", () => {
+    const rows = wrapSpans([{ text: "aaaa bbbb cccc dddd" }], 10);
+    expect(rows.map((r) => r.spans.map((s) => s.text).join(""))).toEqual([
+      "aaaa bbbb ",
+      "cccc dddd",
+    ]);
+    expect(rows.map((r) => r.colStart)).toEqual([0, 10]);
+  });
+
+  test("hard-splits a word longer than the width", () => {
+    const rows = wrapSpans([{ text: "abcdefghijteed" }], 5);
+    expect(rows.map((r) => r.spans.map((s) => s.text).join(""))).toEqual([
+      "abcde",
+      "fghij",
+      "teed",
+    ]);
+  });
+
+  test("preserves span styles across a wrap", () => {
+    const rows = wrapSpans(
+      [{ text: "plain " }, { text: "boldword", bold: true }],
+      6,
+    );
+    // every character survives and the bold flag rides along
+    expect(rows.flatMap((r) => r.spans).some((s) => s.bold)).toBe(true);
+    expect(rows.map((r) => r.spans.map((s) => s.text).join("")).join("")).toBe(
+      "plain boldword",
+    );
+  });
+
+  test("rows reconstruct the display text with contiguous colStarts", () => {
+    const line = "the quick brown fox jumps over the lazy dog";
+    const rows = wrapSpans([{ text: line }], 12);
+    // Concatenated rows equal the original text (nothing dropped)
+    expect(rows.map((r) => r.spans.map((s) => s.text).join("")).join("")).toBe(
+      line,
+    );
+    // colStart[n+1] == colStart[n] + row length
+    for (let i = 1; i < rows.length; i++) {
+      const prevLen = (rows[i - 1]?.spans ?? []).reduce(
+        (n, s) => n + s.text.length,
+        0,
+      );
+      expect(rows[i]?.colStart).toBe((rows[i - 1]?.colStart ?? 0) + prevLen);
+    }
+  });
+});
+
+describe("layoutRows", () => {
+  test("splits code fences and wraps prose to width", () => {
+    const content = ["a short line", "```", "code_line", "```"].join("\n");
+    const rows = layoutRows(content, 80);
+    expect(rows).toHaveLength(4);
+    expect(rows.map((r) => r.line)).toEqual([0, 1, 2, 3]);
+    expect(rows[2]?.isCode).toBe(true);
+  });
+
+  test("one logical line wraps into several rows tagged with its index", () => {
+    const rows = layoutRows("aaaa bbbb cccc dddd eeee", 10);
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.every((r) => r.line === 0)).toBe(true);
   });
 });
 

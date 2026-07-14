@@ -3,11 +3,11 @@ import type { ReactNode, Ref } from "react";
 import { useSpinner } from "../hooks/use-spinner";
 import { t } from "../theme";
 import {
-  codeBlockFlags,
-  computeVisible,
+  computeVisibleRows,
   displayText,
   type InlineSpan,
-  inlineSpans,
+  layoutRows,
+  type PhysicalRow,
   type Selection,
   selectionRangeForLine,
 } from "./result-view";
@@ -16,6 +16,7 @@ interface ResultPaneProps {
   content: string;
   scrollOffset: number;
   maxHeight: number;
+  width: number;
   streaming: boolean;
   hasHistory: boolean;
   focused: boolean;
@@ -27,6 +28,7 @@ export function ResultPane({
   content,
   scrollOffset,
   maxHeight,
+  width,
   streaming,
   hasHistory,
   focused,
@@ -36,16 +38,15 @@ export function ResultPane({
   const height = Math.max(3, maxHeight);
   const spinner = useSpinner(streaming && !content);
 
-  const { lines, start, end, maxLines } = computeVisible(
-    content,
+  const { rows, start, maxLines, total } = computeVisibleRows(
+    layoutRows(content, width),
     scrollOffset,
     maxHeight,
   );
-  const codeFlags = codeBlockFlags(lines);
-  const overflow = lines.length > maxLines;
+  const overflow = total > maxLines;
 
   const title = overflow
-    ? `── response · ${start + 1}–${Math.min(end, lines.length)}/${lines.length} ──`
+    ? `── response · ${start + 1}–${Math.min(start + maxLines, total)}/${total} ──`
     : "── response ──";
 
   return (
@@ -66,9 +67,7 @@ export function ResultPane({
       </Box>
       {content ? (
         <ResultContent
-          lines={lines.slice(start, end)}
-          codeFlags={codeFlags.slice(start, end)}
-          startLine={start}
+          rows={rows}
           selection={selection}
           contentRef={contentRef}
         />
@@ -137,39 +136,37 @@ function lineStyle(
 }
 
 function ResultContent({
-  lines,
-  codeFlags,
-  startLine,
+  rows,
   selection,
   contentRef,
 }: {
-  lines: string[];
-  codeFlags: boolean[];
-  startLine: number;
+  rows: PhysicalRow[];
   selection: Selection | null;
   contentRef: Ref<DOMElement>;
 }) {
   return (
     <Box flexDirection="column" ref={contentRef}>
-      {lines.map((line, idx) => {
-        const isCode = codeFlags[idx] ?? false;
-        const spans = inlineSpans(line, isCode);
-        const base = lineStyle(line, isCode);
-        const globalLine = startLine + idx;
-        const displayLength = displayText(line, isCode).length;
-        const range = selectionRangeForLine(
+      {rows.map((row, idx) => {
+        const base = lineStyle(row.raw, row.isCode);
+        const displayLength = displayText(row.raw, row.isCode).length;
+        // Selection is tracked in logical (line, col) space; shift the line's
+        // range into this wrapped row's local columns.
+        const lineRange = selectionRangeForLine(
           selection,
-          globalLine,
+          row.line,
           displayLength,
         );
+        const range: [number, number] | null = lineRange
+          ? [lineRange[0] - row.colStart, lineRange[1] - row.colStart]
+          : null;
 
         return (
           <Text
-            // biome-ignore lint/suspicious/noArrayIndexKey: flat text list, never reorders
-            key={`${startLine}-${idx}`}
+            // biome-ignore lint/suspicious/noArrayIndexKey: flat row list, never reorders
+            key={idx}
             wrap="truncate-end"
           >
-            {renderSpans(spans, base, range)}
+            {renderSpans(row.spans, base, range)}
           </Text>
         );
       })}
@@ -188,14 +185,18 @@ function renderSpans(
 ) {
   const total = spans.reduce((n, s) => n + s.text.length, 0);
 
-  // A fully-selected blank line has nothing to paint; show a single swatch so
-  // the user can tell the empty line is part of the selection.
+  // A blank line must still occupy one terminal row, otherwise it collapses to
+  // zero height and the 1-row-per-physical-line invariant (that scrolling and
+  // mouse mapping rely on) breaks. Render a single space — swatched when the
+  // empty line falls inside the selection so the user can see it is included.
   if (total === 0) {
     return range ? (
       <Text backgroundColor={t().fg.accent} color={t().bg.panel}>
         {" "}
       </Text>
-    ) : null;
+    ) : (
+      <Text> </Text>
+    );
   }
 
   const out: ReactNode[] = [];

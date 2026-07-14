@@ -45,10 +45,10 @@ import { Header } from "./components/Header";
 import { PromptInput } from "./components/PromptInput";
 import { ResultPane } from "./components/ResultPane";
 import {
-  codeBlockFlags,
-  computeVisible,
-  displayText,
+  computeVisibleRows,
   extractSelection,
+  layoutRows,
+  type PhysicalRow,
   type Selection,
   type SelectionPos,
 } from "./components/result-view";
@@ -85,6 +85,26 @@ function computePromptSuggestions(
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+// The whole conversation rendered as one scrollback string for the response
+// pane: each user prompt echoed with a marker, each assistant answer in full,
+// turns separated by a blank line. While streaming, the in-progress answer is
+// shown as the pending final turn — it isn't in `messages` yet, so this is the
+// only place it appears; once the turn completes it lives in `messages` and is
+// no longer appended, so it is never duplicated.
+function buildTranscript(
+  messages: Message[],
+  streaming: boolean,
+  pending: string,
+): string {
+  const blocks: string[] = [];
+  for (const m of messages) {
+    if (m.role === "user") blocks.push(`❯ ${m.content}`);
+    else if (m.role === "assistant") blocks.push(m.content);
+  }
+  if (streaming) blocks.push(pending);
+  return blocks.filter((b) => b.length > 0).join("\n\n");
 }
 
 // The thinking pane is on screen when it is enabled and there is either
@@ -475,6 +495,7 @@ export function App() {
       shortcut: "",
       action: () =>
         update({
+          messages: [],
           result: "",
           thinking: { active: false, content: "", tokens: 0 },
           agentSteps: [],
@@ -506,40 +527,45 @@ export function App() {
   const showAgent = state.agentSteps.length > 0;
   const scrollFocus = showThinking ? state.scrollFocus : "response";
   const layout = useLayout({ showThinking, showAgent });
+  // Inner width of the response pane: terminal columns minus its rounded border.
+  const resultWidth = Math.max(1, layout.columns - 2);
+  // The response pane shows the full conversation, not just the latest answer.
+  const transcript = buildTranscript(
+    state.messages,
+    state.streaming,
+    state.result,
+  );
 
   // Translate a 1-based terminal cell (col, row) into a position inside the
   // response content, or null when the cell isn't over rendered text.
   const mapMouse = (col: number, row: number): SelectionPos | null => {
     const node = contentBoxRef.current;
-    if (!node || !state.result) return null;
+    if (!node || !transcript) return null;
     const { top, left } = absolutePosition(node);
-    const view = computeVisible(
-      state.result,
+    const view = computeVisibleRows(
+      layoutRows(transcript, resultWidth),
       state.scrollOffset,
       layout.resultHeight,
     );
-    const visibleCount = Math.max(
-      0,
-      Math.min(view.maxLines, view.lines.length - view.start),
-    );
-    if (visibleCount === 0) return null;
+    const visibleRows = view.rows;
+    if (visibleRows.length === 0) return null;
 
-    const codeFlags = codeBlockFlags(view.lines);
+    const rowLen = (r: PhysicalRow): number =>
+      r.spans.reduce((n, s) => n + s.text.length, 0);
     const visIdx = row - 1 - top;
-    // Clamp drags above/below the pane to the first/last visible line so a
+    // Clamp drags above/below the pane to the first/last visible row so a
     // selection can be extended past the edges.
-    if (visIdx < 0) return { line: view.start, col: 0 };
-    if (visIdx >= visibleCount) {
-      const line = view.start + visibleCount - 1;
-      return {
-        line,
-        col: displayText(view.lines[line] ?? "", codeFlags[line] ?? false)
-          .length,
-      };
+    if (visIdx < 0) {
+      const first = visibleRows[0];
+      return first ? { line: first.line, col: first.colStart } : null;
     }
-    const line = view.start + visIdx;
-    const text = displayText(view.lines[line] ?? "", codeFlags[line] ?? false);
-    return { line, col: clamp(col - 1 - left, 0, text.length) };
+    const target = visibleRows[Math.min(visIdx, visibleRows.length - 1)];
+    if (!target) return null;
+    const localCol =
+      visIdx >= visibleRows.length
+        ? rowLen(target)
+        : clamp(col - 1 - left, 0, rowLen(target));
+    return { line: target.line, col: target.colStart + localCol };
   };
 
   // Keyboard handler
@@ -559,8 +585,12 @@ export function App() {
       const mouse = parseMouseEvent(input);
       if (!mouse) return;
 
+      const paneContent = buildTranscript(s.messages, s.streaming, s.result);
+
       if (mouse.wheel) {
-        const lineCount = s.result ? s.result.split("\n").length : 0;
+        const lineCount = paneContent
+          ? layoutRows(paneContent, resultWidth).length
+          : 0;
         update({
           scrollOffset: clamp(
             s.scrollOffset + mouse.wheelDelta * 3,
@@ -577,7 +607,7 @@ export function App() {
         draggingRef.current = false;
         const sel = s.selection;
         if (!sel) return;
-        const text = extractSelection(s.result, sel);
+        const text = extractSelection(paneContent, sel);
         if (!text) {
           update({ selection: null });
           return;
@@ -677,7 +707,10 @@ export function App() {
           ),
         });
       } else {
-        const lineCount = s.result ? s.result.split("\n").length : 0;
+        const paneContent = buildTranscript(s.messages, s.streaming, s.result);
+        const lineCount = paneContent
+          ? layoutRows(paneContent, resultWidth).length
+          : 0;
         update({
           scrollOffset: clamp(s.scrollOffset + delta, 0, lineCount),
           selection: null,
@@ -815,9 +848,10 @@ export function App() {
         />
         <AgentSteps steps={state.agentSteps} maxHeight={layout.agentMax} />
         <ResultPane
-          content={state.result}
+          content={transcript}
           scrollOffset={state.scrollOffset}
           maxHeight={layout.resultHeight}
+          width={resultWidth}
           streaming={state.streaming}
           hasHistory={state.messages.length > 0}
           focused={scrollFocus === "response"}
