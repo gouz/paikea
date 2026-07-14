@@ -26,13 +26,13 @@ const STEP_GUIDANCE: Record<string, string> = {
   discuss:
     "Free-form discussion. Explore the problem space with the user — constraints, tradeoffs, prior art, edge cases. Do NOT create any OpenSpec artifacts or run any openspec commands yet.",
   proposal:
-    "Create an OpenSpec change: run `openspec new change <kebab-case-name>`, then write its `proposal.md` (Why / What Changes / Impact).",
+    "Create an OpenSpec change: run `openspec new change <kebab-case-name>`, then write its `proposal.md` (Why / What Changes / Impact). Only write the proposal spec — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   design:
-    "Write the technical design in the change's `design.md`: architecture, data model, API, integration points, alternatives considered.",
+    "Write the technical design in the change's `design.md`: architecture, data model, API, integration points, alternatives considered. Only write the design doc — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   specs:
-    "Write the spec deltas under the change's `specs/<domain>/spec.md` — the requirements this change adds or modifies. Run `openspec validate <name>` to check them.",
+    "Write the spec deltas under the change's `specs/<domain>/spec.md` — the requirements this change adds or modifies. Run `openspec validate <name>` to check them. Only write the spec — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   tasks:
-    "Break the change into an ordered checklist in its `tasks.md` (`- [ ]` items, grouped, parallelizable work flagged).",
+    "Break the change into an ordered checklist in its `tasks.md` (`- [ ]` items, grouped, parallelizable work flagged). Only write the task list — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   apply:
     "Implement the tasks from the change's `tasks.md`, checking them off (`- [x]`) as you complete them. Validate with `openspec validate <name>`.",
   archive:
