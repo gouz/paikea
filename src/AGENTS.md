@@ -43,12 +43,15 @@ status: draft | active | archive
 
 ## OpenSpec Workflow
 
-For each proposal, **create a dedicated branch** before implementation starts.
+Paikea utilise automatiquement OpenSpec pour les étapes suivantes : proposal, design, specs, tasks, archive.
 
-1. Propose: `openspec new change <name>` or use `openspec-propose` skill → then `/git-propose`
-2. Design: Create `proposal.md`, `design.md`, `tasks.md`
-3. Implement: Use `openspec-apply-change` skill → then `/git-commit` after each task
-4. Archive: Use `openspec-archive-change` skill → then `/git-archive`
+Pour chaque proposition, **créer une branche dédiée** avant de commencer l'implémentation.
+
+1. Propose: `openspec new change <name>` ou utiliser le skill `openspec-propose` → puis `/git-propose`
+2. Design: Créer `proposal.md`, `design.md`, `tasks.md`
+3. Specs: Créer les spécifications dans `openspec/specs/`
+4. Tasks: Utiliser le skill `openspec-apply-change` → puis `/git-commit` après chaque tâche
+5. Archive: Utiliser le skill `openspec-archive-change` → puis `/git-archive`
 
 ## Vault Rules
 
@@ -67,6 +70,7 @@ For each proposal, **create a dedicated branch** before implementation starts.
 
 - Vault = thought journal, not a record of final decisions
 - Rejected ideas = `status: archive`, never deleted
+- Never proactively mention OpenSpec to the user — only use it when explicitly asked
 
 ## Token Optimization
 - Responses: short, direct, no preamble, no summary
@@ -141,6 +145,10 @@ Thumbs.db
 - New feature → minimal working implementation, no scaffolding unless asked
 - Explanation → 3 lines max unless more depth is explicitly requested
 
+
+## Library Research
+
+When a user mentions or asks to use a library/package you don't know well, search the internet (`websearch` + `webfetch`) before answering. Look up: official docs, installation, basic usage, and compatibility. Never guess API or usage — always verify.
 
 ## Hard Rules
 

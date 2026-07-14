@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 // Generate src/assets.ts with embedded file contents
 function generateAssets() {
-  const agentsMd = readFileSync("AGENTS.md", "utf-8");
+  const agentsMd = readFileSync("src/AGENTS.md", "utf-8");
 
   const skills: Record<string, string> = {};
   collectMdFiles("src/skills", skills);
