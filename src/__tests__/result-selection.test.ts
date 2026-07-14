@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
+  codeBlockFlags,
   computeVisible,
   displayText,
   extractSelection,
+  inlineSpans,
   orderSelection,
+  parseInline,
   type Selection,
   selectionRangeForLine,
 } from "../tui/components/result-view";
@@ -20,6 +23,68 @@ describe("displayText", () => {
 
   test("renders bullets with the buoy symbol", () => {
     expect(displayText("- item")).toBe("  ◦ item");
+  });
+
+  test("strips inline emphasis markers", () => {
+    expect(displayText("say **hi** to *you* and `me`")).toBe(
+      "say hi to you and me",
+    );
+    expect(displayText("- **done** now")).toBe("  ◦ done now");
+  });
+
+  test("leaves code lines verbatim", () => {
+    expect(displayText("const a_b = *ptr;", true)).toBe("const a_b = *ptr;");
+    expect(displayText("# not a heading in code", true)).toBe(
+      "# not a heading in code",
+    );
+  });
+});
+
+describe("parseInline", () => {
+  test("splits bold, italic and code spans", () => {
+    expect(parseInline("a **b** c")).toEqual([
+      { text: "a " },
+      { text: "b", bold: true },
+      { text: " c" },
+    ]);
+    expect(parseInline("a *b* c")).toEqual([
+      { text: "a " },
+      { text: "b", italic: true },
+      { text: " c" },
+    ]);
+    expect(parseInline("a `b` c")).toEqual([
+      { text: "a " },
+      { text: "b", code: true },
+      { text: " c" },
+    ]);
+  });
+
+  test("leaves snake_case and spaced asterisks alone", () => {
+    expect(parseInline("my_var_name")).toEqual([{ text: "my_var_name" }]);
+    expect(parseInline("2 * 3 * 4")).toEqual([{ text: "2 * 3 * 4" }]);
+  });
+
+  test("keeps unmatched markers literal", () => {
+    expect(parseInline("just ** stuff")).toEqual([{ text: "just ** stuff" }]);
+  });
+
+  test("emphasis spans concatenate back to the display text", () => {
+    const line = "mix **bold** and *italic* and `code`";
+    const joined = parseInline(line)
+      .map((s) => s.text)
+      .join("");
+    expect(joined).toBe(displayText(line));
+  });
+});
+
+describe("codeBlockFlags", () => {
+  test("marks fenced lines and their contents as code", () => {
+    const lines = ["intro", "```ts", "const a = 1;", "```", "outro"];
+    expect(codeBlockFlags(lines)).toEqual([false, true, true, true, false]);
+  });
+
+  test("inlineSpans passes code lines through untouched", () => {
+    expect(inlineSpans("a_b *c*", true)).toEqual([{ text: "a_b *c*" }]);
   });
 });
 

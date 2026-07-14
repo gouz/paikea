@@ -45,6 +45,7 @@ import { Header } from "./components/Header";
 import { PromptInput } from "./components/PromptInput";
 import { ResultPane } from "./components/ResultPane";
 import {
+  codeBlockFlags,
   computeVisible,
   displayText,
   extractSelection,
@@ -523,16 +524,21 @@ export function App() {
     );
     if (visibleCount === 0) return null;
 
+    const codeFlags = codeBlockFlags(view.lines);
     const visIdx = row - 1 - top;
     // Clamp drags above/below the pane to the first/last visible line so a
     // selection can be extended past the edges.
     if (visIdx < 0) return { line: view.start, col: 0 };
     if (visIdx >= visibleCount) {
       const line = view.start + visibleCount - 1;
-      return { line, col: displayText(view.lines[line] ?? "").length };
+      return {
+        line,
+        col: displayText(view.lines[line] ?? "", codeFlags[line] ?? false)
+          .length,
+      };
     }
     const line = view.start + visIdx;
-    const text = displayText(view.lines[line] ?? "");
+    const text = displayText(view.lines[line] ?? "", codeFlags[line] ?? false);
     return { line, col: clamp(col - 1 - left, 0, text.length) };
   };
 
