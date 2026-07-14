@@ -288,9 +288,7 @@ export function App() {
       rulesPromptRef.current +
       buildStepPrompt(stepId);
 
-    const messages: ChatMessage[] = [
-      { role: "system", content: systemPrompt },
-    ];
+    const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 
     for (const msg of [...state.messages, userMessage]) {
       messages.push({ role: msg.role, content: msg.content });
