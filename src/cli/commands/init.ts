@@ -4,6 +4,7 @@ import { intro, log, outro } from "@clack/prompts";
 import { AGENTS_MD, RULES, SKILLS } from "../../assets";
 import { generateDevcontainer } from "../../services/devcontainer";
 import { generateDiataxisDocs } from "../../services/doc-generator";
+import { initGitRepo } from "../../services/git-setup";
 import { installOpenSpec } from "../../services/openspec-setup";
 import { syncOpenSpecToVault } from "../../services/openspec-sync";
 import { generateProjectStructure } from "../../services/project-scaffold";
@@ -39,6 +40,9 @@ export async function initHandler() {
       scope: join(config.name, "src"),
       projectName: config.name,
     });
+
+    log.step("Initializing git repository...");
+    initGitRepo(config.name);
 
     outro(`Done! Run: cd ${config.name} && paikea`);
   } catch (error) {
