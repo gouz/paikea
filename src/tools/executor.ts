@@ -412,31 +412,53 @@ function gitCommit(message: string, projectDir: string): string {
   }
 }
 
+const MAIN_BRANCH = "main";
+
 function gitArchive(projectDir: string): string {
-  try {
-    const branch = execSync("git branch --show-current", {
+  const run = (cmd: string) =>
+    execSync(cmd, {
       cwd: projectDir,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+    });
+
+  try {
+    const branch = run("git branch --show-current").trim();
 
     if (!branch) {
-      return "Not on a branch. Cannot push.";
+      return "Not on a branch. Cannot archive.";
+    }
+    if (branch === MAIN_BRANCH) {
+      return `Already on ${MAIN_BRANCH}. Switch to the change's feat/<name> branch before archiving.`;
     }
 
-    execSync(`git push -u origin ${branch}`, {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    // Archive the change first: this merges its spec deltas into
+    // openspec/specs/ and moves the change under archive/. Commit the result on
+    // the feature branch so it can be carried into main by the merge below.
+    const archiveResult = run("openspec archive --yes");
+    run("git add -A");
+    try {
+      run(`git commit -m ":clipboard: spec: archive ${branch}"`);
+    } catch {
+      // nothing to commit — archive produced no file changes
+    }
 
-    const archiveResult = execSync("openspec archive", {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    // Merge the completed change into main.
+    run(`git checkout ${MAIN_BRANCH}`);
+    run(`git merge --no-ff ${branch} -m "Merge ${branch} into ${MAIN_BRANCH}"`);
 
-    return `Pushed branch ${branch} to origin.\n${archiveResult.trim()}`;
+    // Publishing is best-effort: a locally-initialized repo has no origin, and
+    // that must not fail the archive+merge that already succeeded.
+    let pushed = "";
+    try {
+      run(`git push origin ${branch}`);
+      run(`git push origin ${MAIN_BRANCH}`);
+      pushed = " Pushed branch and main to origin.";
+    } catch {
+      pushed = " (no origin to push to — skipped.)";
+    }
+
+    return `Archived ${branch} and merged it into ${MAIN_BRANCH}.${pushed}\n${archiveResult.trim()}`;
   } catch (error) {
     const err = error as { stderr?: string; message?: string };
     return `Archive failed: ${err.stderr ?? err.message ?? "unknown error"}`;

@@ -191,7 +191,7 @@ function loadBundledTools(): ToolDefinition[] {
     {
       name: "git_archive",
       description:
-        "Push the current feature branch to origin and archive the OpenSpec change. Used at the end of the workflow.",
+        "Archive the OpenSpec change, commit the result, and merge the current feature branch into main (pushing to origin when one exists). Used at the end of the workflow.",
       parameters: {
         type: "object",
         properties: {},

@@ -26,7 +26,7 @@ const STEP_GUIDANCE: Record<string, string> = {
   discuss:
     "Free-form discussion. Explore the problem space with the user — constraints, tradeoffs, prior art, edge cases. Do NOT create any OpenSpec artifacts or run any openspec commands yet.",
   proposal:
-    "Create an OpenSpec change: run `openspec new change <kebab-case-name>`, then write its `proposal.md` (Why / What Changes / Impact). Only write the proposal spec — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
+    "Create an OpenSpec change: run `openspec new change <kebab-case-name>`, then write its `proposal.md` (Why / What Changes / Impact). Only write the proposal spec — do NOT write, edit, or generate any implementation/source code. Once the change exists, create its dedicated git branch with the `git_propose` tool (see the `openspec-git` skill). Implementation happens later, in the apply step.",
   design:
     "Write the technical design in the change's `design.md`: architecture, data model, API, integration points, alternatives considered. Only write the design doc — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   specs:
@@ -34,9 +34,9 @@ const STEP_GUIDANCE: Record<string, string> = {
   tasks:
     "Break the change into an ordered checklist in its `tasks.md` (`- [ ]` items, grouped, parallelizable work flagged). Only write the task list — do NOT write, edit, or generate any implementation/source code. Implementation happens later, in the apply step.",
   apply:
-    "Implement the tasks from the change's `tasks.md`, checking them off (`- [x]`) as you complete them. Validate with `openspec validate <name>`.",
+    "Implement the tasks from the change's `tasks.md`, checking them off (`- [x]`) as you complete them. After finishing each task, commit it with the `git_commit` tool using a conventional-commit message (see the `openspec-git` skill) — one task, one commit. Validate with `openspec validate <name>`.",
   archive:
-    "The change is complete: archive it with `openspec archive <name> --yes`, which merges its spec deltas into `openspec/specs/`. Summarize what was learned.",
+    "The change is complete: archive it with the `git_archive` tool, which runs `openspec archive` (merging its spec deltas into `openspec/specs/`), commits the result, and merges the feature branch into main (see the `openspec-git` skill). Summarize what was learned.",
 };
 
 export function buildStepPrompt(stepId: string): string {
