@@ -8,6 +8,7 @@ import {
   buildStepPrompt,
   detectOpenSpecSteps,
 } from "../services/openspec-hook";
+import { getRtkSavings, type RtkSavings } from "../services/rtk";
 import {
   computeStepCommands,
   computeSuggestions,
@@ -141,6 +142,7 @@ interface AppState {
   themeTick: number;
   selection: Selection | null;
   notice: string;
+  rtkSavings: RtkSavings | null;
 }
 
 export function App() {
@@ -169,6 +171,7 @@ export function App() {
     themeTick: 0,
     selection: null,
     notice: "",
+    rtkSavings: null,
   });
 
   const [prompt, setPrompt] = useState("");
@@ -214,6 +217,8 @@ export function App() {
       rulesPromptRef.current = buildRulesPrompt(loadRules());
       toolsRef.current = loadTools(cwd.current);
 
+      const rtkSavings = getRtkSavings();
+
       setState((s) => ({
         ...s,
         models,
@@ -222,6 +227,7 @@ export function App() {
         selectedStepIndex: currentIdx,
         suggestions: initialSuggestions,
         thinkingEnabled,
+        rtkSavings,
       }));
     }
     void init();
@@ -875,6 +881,7 @@ export function App() {
         confirmQuit={state.confirmQuit}
         canFocusPanes={showThinking}
         notice={state.notice}
+        rtkSavings={state.rtkSavings}
       />
       {state.uiMode === "palette" && (
         <CommandPalette actions={actions} selectedIndex={state.paletteIndex} />

@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { formatTokenCount, type RtkSavings } from "../../services/rtk";
 import type { Model } from "../../types";
 import { useElapsed, useSpinner } from "../hooks/use-spinner";
 import { t } from "../theme";
@@ -11,6 +12,7 @@ interface StatusBarProps {
   confirmQuit: boolean;
   canFocusPanes: boolean;
   notice: string;
+  rtkSavings: RtkSavings | null;
 }
 
 // The whole bar is a single Text with truncate-end so it never wraps to a
@@ -23,6 +25,7 @@ export function StatusBar({
   confirmQuit,
   canFocusPanes,
   notice,
+  rtkSavings,
 }: StatusBarProps) {
   const spinner = useSpinner(streaming);
   const elapsed = useElapsed(streaming);
@@ -80,6 +83,13 @@ export function StatusBar({
         ) : null}
         {tokens > 0 ? (
           <Text color={t().fg.dim}> · thinking {tokens}</Text>
+        ) : null}
+        {rtkSavings ? (
+          <Text color={t().fg.success}>
+            {" "}
+            · rtk {formatTokenCount(rtkSavings.totalSaved)} saved (
+            {rtkSavings.avgSavingsPct.toFixed(0)}%)
+          </Text>
         ) : null}
         <Text color={t().fg.dim}>
           {" "}

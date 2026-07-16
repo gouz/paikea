@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
+import { isRtkAvailable, rtkExec } from "../services/rtk";
 import { getSkillContent, loadSkills } from "../skills/registry";
 import type { ToolCall, ToolDefinition, ToolResult } from "../types";
 
@@ -257,6 +258,19 @@ function readFile(path: string, projectDir: string): string {
 function listFiles(path: string, projectDir: string): string {
   const resolved = resolvePath(path, projectDir);
   if (!existsSync(resolved)) return `Directory not found: ${path}`;
+  if (isRtkAvailable()) {
+    try {
+      const out = execSync(`rtk ls "${path}"`, {
+        cwd: projectDir,
+        encoding: "utf-8",
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      return out.trim();
+    } catch {
+      // fall through to readdirSync
+    }
+  }
   const entries = readdirSync(resolved, { withFileTypes: true });
   return entries
     .map((e) => `${e.isDirectory() ? "d" : "f"} ${e.name}`)
@@ -277,12 +291,7 @@ function shellExec(command: string, projectDir: string): string {
     }
   }
   try {
-    const stdout = execSync(command, {
-      cwd: projectDir,
-      encoding: "utf-8",
-      timeout: 30000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const stdout = rtkExec(command, projectDir);
     return stdout.length > 8000
       ? `${stdout.slice(0, 8000)}\n... (truncated)`
       : stdout;
@@ -379,11 +388,7 @@ function gitPropose(projectDir: string): string {
   const branchName = `feat/${latest}`;
 
   try {
-    execSync(`git checkout -b ${branchName}`, {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    rtkExec(`git checkout -b ${branchName}`, projectDir);
     return `Created and switched to branch: ${branchName}`;
   } catch (error) {
     const err = error as { stderr?: string; message?: string };
@@ -393,17 +398,9 @@ function gitPropose(projectDir: string): string {
 
 function gitCommit(message: string, projectDir: string): string {
   try {
-    execSync("git add -A", {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    rtkExec("git add -A", projectDir);
 
-    const result = execSync(`git commit -m "${message}"`, {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const result = rtkExec(`git commit -m "${message}"`, projectDir);
 
     return result.trim() || `Committed: ${message}`;
   } catch (error) {
@@ -415,12 +412,7 @@ function gitCommit(message: string, projectDir: string): string {
 const MAIN_BRANCH = "main";
 
 function gitArchive(projectDir: string): string {
-  const run = (cmd: string) =>
-    execSync(cmd, {
-      cwd: projectDir,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+  const run = (cmd: string) => rtkExec(cmd, projectDir);
 
   try {
     const branch = run("git branch --show-current").trim();
