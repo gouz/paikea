@@ -1,22 +1,20 @@
-## Project Creation — Mandatory Rule
+---
+name: devcontainer
+description: Always create a devcontainer when scaffolding a new project
+applies_to: "*"
+---
 
-When creating any new project, you MUST always generate a devcontainer before anything else:
+When creating a new project, generate a devcontainer first:
 
-1. Create a `.devcontainer/devcontainer.json` file adapted to the detected stack.
-2. Create a `.devcontainer/Dockerfile` file.
-3. Create a `.devcontainer/compose.yml` file.
-4. Define the `appPort` in `.devcontainer/devcontainer.json`
-5. Confirm the creation of the devcontainer before continuing.
+1. `.devcontainer/devcontainer.json` — adapted to detected stack
+2. `.devcontainer/Dockerfile`
+3. `.devcontainer/compose.yml`
+4. Set `appPort` in `devcontainer.json`
+5. Confirm creation before continuing
 
-### Docker creation
-
-A devcontainer must be generated with a Dockerfile and a docker compose
-
-### Minimum Expected Structure
+Minimum structure:
 ```json
-{
-  "name": "<project-name>",
-  "dockerComposeFile": "compose.yml",
-}``
+{ "name": "<project-name>", "dockerComposeFile": "compose.yml" }
+```
 
-Never initialize a project without this file. If the project type is ambiguous, request the runtime before starting.
+Never init a project without devcontainer files.
